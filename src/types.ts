@@ -104,6 +104,8 @@ export interface HotspotRequestParams extends BaseFilterParams {
 }
 
 export interface CurrentStatusResponse {
+  /** Año de la semana evaluada. Opcional hasta que el backend real lo devuelva. */
+  year?: number
   week: number
   value: number
   percentile: number

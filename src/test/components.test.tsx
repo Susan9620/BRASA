@@ -25,11 +25,11 @@ describe('Componentes UI de BRASA', () => {
     )
     expect(screen.getByAltText(/BRASA Logo/i)).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /Inicio/i })[0]).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Explorar/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Comparar/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /Explorar/i })[0]).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Análisis histórico/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Alertas/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Acerca de nosotros/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /CODE RED/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /Acerca de nosotros/i })[0]).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /Metodología/i })[0]).toBeInTheDocument()
   })
 
   it('no muestra los enlaces de navegación superior en páginas interiores', () => {
@@ -40,7 +40,7 @@ describe('Componentes UI de BRASA', () => {
     )
     expect(screen.getByText(/MODIS & VIIRS/i)).toBeInTheDocument()
     // Los enlaces del menú superior de inicio no deben existir en el navbar en páginas interiores
-    expect(screen.queryByRole('link', { name: /^Dashboard$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Metodología$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /^Acerca de nosotros$/i })).not.toBeInTheDocument()
   })
 
@@ -61,7 +61,7 @@ describe('Componentes UI de BRASA', () => {
     expect(retried).toBe(true)
   })
 
-  it('renderiza las 4 tarjetas de indicadores KPI', () => {
+  it('renderiza los 4 indicadores KPI', () => {
     const mockSeason: SeasonResponse = {
       years: [
         {
@@ -90,17 +90,19 @@ describe('Componentes UI de BRASA', () => {
     }
 
     render(
-      <KpiCards
-        season={mockSeason}
-        currentStatus={mockStatus}
-        selectedYear={2024}
-        isLoading={false}
-      />
+      <MemoryRouter>
+        <KpiCards
+          season={mockSeason}
+          currentStatus={mockStatus}
+          selectedYear={2024}
+          isLoading={false}
+        />
+      </MemoryRouter>
     )
 
-    expect(screen.getByText(/Pico de temporada \(2024\)/i)).toBeInTheDocument()
-    expect(screen.getByText(/Año más activo histórico/i)).toBeInTheDocument()
-    expect(screen.getByText(/Tendencia histórica/i)).toBeInTheDocument()
+    expect(screen.getByText(/Actividad total 2024/i)).toBeInTheDocument()
+    expect(screen.getByText(/Mes más activo/i)).toBeInTheDocument()
+    expect(screen.getByText(/Periodos inusuales 2024/i)).toBeInTheDocument()
     expect(screen.getByText(/Estado de esta semana/i)).toBeInTheDocument()
     expect(screen.getByText(/inusual/i)).toBeInTheDocument()
   })

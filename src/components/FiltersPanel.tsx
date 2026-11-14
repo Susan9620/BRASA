@@ -105,11 +105,11 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
 
       {/* 2. Ubicación territorial */}
       <div className="space-y-2">
-        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
           UBICACIÓN TERRITORIAL
         </label>
         <div>
-          <span className="text-[10px] text-slate-400 font-medium block mb-1">País</span>
+          <span className="text-xs text-slate-400 font-medium block mb-1">País</span>
           <input
             type="text"
             readOnly
@@ -120,7 +120,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label htmlFor="province-select" className="text-[10px] text-slate-400 font-medium block mb-1">
+            <label htmlFor="province-select" className="text-xs text-slate-400 font-medium block mb-1">
               Provincia
             </label>
             <div className="relative">
@@ -144,7 +144,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
           </div>
 
           <div>
-            <label htmlFor="canton-select" className="text-[10px] text-slate-400 font-medium block mb-1">
+            <label htmlFor="canton-select" className="text-xs text-slate-400 font-medium block mb-1">
               Ciudad / Cantón
             </label>
             <div className="relative">
@@ -172,7 +172,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
 
       {/* 3. Área de cobertura */}
       <div className="space-y-2 pt-1 border-t border-slate-100">
-        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
           ÁREA DE COBERTURA
         </label>
         <div className="grid grid-cols-2 gap-2">
@@ -247,12 +247,12 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
 
       {/* 4. Período histórico */}
       <div className="space-y-2 pt-1 border-t border-slate-100">
-        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
           PERÍODO HISTÓRICO
         </label>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <span className="text-[10px] text-slate-400 font-medium block mb-1">Desde</span>
+            <span className="text-xs text-slate-400 font-medium block mb-1">Desde</span>
             <div className="relative">
               <select
                 value={filters.yearRange[0]}
@@ -271,7 +271,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
             </div>
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 font-medium block mb-1">Hasta</span>
+            <span className="text-xs text-slate-400 font-medium block mb-1">Hasta</span>
             <div className="relative">
               <select
                 value={filters.yearRange[1]}
@@ -292,7 +292,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
         </div>
 
         <div>
-          <label htmlFor="selected-year-select" className="text-[10px] text-slate-400 font-medium block mb-1">
+          <label htmlFor="selected-year-select" className="text-xs text-slate-400 font-medium block mb-1">
             Año en foco (mapa y gráficos)
           </label>
           <div className="relative">
@@ -307,7 +307,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
                 (_, i) => filters.yearRange[0] + i
               ).map((y) => (
                 <option key={y} value={y}>
-                  {y} {y === 2024 || y === 2012 ? '🔥 (Temporada crítica)' : ''}
+                  {y}{y === 2024 || y === 2012 ? ' · temporada crítica' : ''}
                 </option>
               ))}
             </select>
@@ -318,7 +318,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
 
       {/* 5. Sensor satelital */}
       <div className="space-y-2 pt-1 border-t border-slate-100">
-        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
           SENSOR SATELITAL
         </label>
         <div className="grid grid-cols-3 gap-1.5">
@@ -346,7 +346,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
       {/* 6. Confianza y Día/Noche */}
       <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
         <div>
-          <label htmlFor="confidence-select" className="text-[10px] text-slate-400 font-medium block mb-1">
+          <label htmlFor="confidence-select" className="text-xs text-slate-400 font-medium block mb-1">
             Confianza
           </label>
           <div className="relative">
@@ -364,7 +364,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
         </div>
 
         <div>
-          <label htmlFor="daynight-select" className="text-[10px] text-slate-400 font-medium block mb-1">
+          <label htmlFor="daynight-select" className="text-xs text-slate-400 font-medium block mb-1">
             Paso Satelital
           </label>
           <div className="relative">
@@ -400,7 +400,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
   return (
     <>
       <div
-        className={`bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hidden lg:block ${className}`}
+        className={`bg-white rounded-[28px] p-6 border border-slate-200/70 hidden lg:block ${className}`}
       >
         {content}
       </div>

@@ -9,10 +9,12 @@ import { Explore } from './pages/Explore'
 import { Compare } from './pages/Compare'
 import { Alertas } from './pages/Alertas'
 import { AboutTeam } from './pages/AboutTeam'
+import { Metodologia } from './pages/Metodologia'
+import { isLandingPath } from './utils/routes'
 
 const AppLayout: React.FC = () => {
   const location = useLocation()
-  const isHomePage = location.pathname === '/'
+  const isHomePage = isLandingPath(location.pathname)
 
   return (
     <div
@@ -39,6 +41,7 @@ const AppLayout: React.FC = () => {
             <Route path="/comparar" element={<Compare />} />
             <Route path="/alertas" element={<Alertas />} />
             <Route path="/equipo" element={<AboutTeam />} />
+            <Route path="/metodologia" element={<Metodologia />} />
             <Route path="*" element={<Navigate to="/explorar" replace />} />
           </Routes>
         </main>
@@ -50,7 +53,7 @@ const AppLayout: React.FC = () => {
           <div className="max-w-[1680px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <img
-                src="/brasa-flame.png"
+                src="/llama_brasa.PNG"
                 alt="BRASA"
                 className="h-6 w-auto object-contain"
               />

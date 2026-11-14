@@ -1,18 +1,73 @@
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
-import {
-  GitCompare,
-  Download,
-  Calendar,
-  Flame,
-  Clock,
-  TrendingUp,
-} from 'lucide-react'
+import { Download } from 'lucide-react'
 import { useBrasaData } from '../hooks/useBrasaData'
 import { useFilters } from '../hooks/useFilters'
 import { exportChartToPNG } from '../utils/exportUtils'
 import { formatWeekFriendly } from '../utils/dateUtils'
 import { ChartSkeleton } from '../components/SkeletonLoader'
+import { MONTHS_SHORT, monthlyHistoricalMean, monthlyTotals } from '../utils/monthly'
+
+const COLOR_A = '#E53935'
+const COLOR_B = '#0B1B3D'
+const WEEKS = Array.from({ length: 52 }, (_, i) => `S${i + 1}`)
+
+const TOOLTIP = {
+  trigger: 'axis',
+  backgroundColor: 'rgba(11, 27, 61, 0.96)',
+  borderWidth: 0,
+  textStyle: { color: '#ffffff', fontSize: 12 },
+}
+
+const AXIS_X = {
+  type: 'category',
+  boundaryGap: false,
+  axisLabel: { interval: 3, fontSize: 11, color: '#64748b' },
+  axisLine: { lineStyle: { color: '#e2e8f0' } },
+  axisTick: { show: false },
+}
+
+const AXIS_Y = {
+  type: 'value',
+  axisLabel: { fontSize: 11, color: '#64748b' },
+  splitLine: { lineStyle: { color: '#f1f5f9' } },
+}
+
+const LEGEND = {
+  bottom: 0,
+  icon: 'roundRect',
+  itemWidth: 14,
+  itemHeight: 4,
+  textStyle: { color: '#475569', fontSize: 12 },
+}
+
+/* "+3 sem.", "−2 sem." o "igual" */
+const weekDelta = (a?: number, b?: number) => {
+  if (a === undefined || b === undefined) return '—'
+  const d = a - b
+  if (d === 0) return 'Igual'
+  return `${d > 0 ? '+' : '−'}${Math.abs(d)} sem.`
+}
+
+const Card: React.FC<{ eyebrow: string; title: string; subtitle?: string; action?: React.ReactNode; children: React.ReactNode }> = ({
+  eyebrow,
+  title,
+  subtitle,
+  action,
+  children,
+}) => (
+  <section className="bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/70">
+    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+      <div>
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">{eyebrow}</p>
+        <h2 className="mt-2 text-xl sm:text-2xl font-black tracking-tight text-[#0B1B3D]">{title}</h2>
+        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
+      </div>
+      {action}
+    </div>
+    <div className="mt-5">{children}</div>
+  </section>
+)
 
 export const Compare: React.FC = () => {
   const { filters } = useFilters()
@@ -20,335 +75,346 @@ export const Compare: React.FC = () => {
 
   const [yearA, setYearA] = useState<number>(2024)
   const [yearB, setYearB] = useState<number>(2012)
-  const chartRef = useRef<ReactECharts>(null)
+  const [curveView, setCurveView] = useState<'semanal' | 'acumulado'>('semanal')
+  const weeklyRef = useRef<ReactECharts>(null)
 
   const selectedRegion = regions?.find((r) => r.id === filters.provinceId) || regions?.[0]
 
-  const availableYears = useMemo(() => {
-    if (!season) return [2012, 2024]
-    return season.years.map((y) => y.year).sort((a, b) => b - a)
-  }, [season])
+  const seasonYears = useMemo(() => [...(season?.years ?? [])].sort((a, b) => a.year - b.year), [season])
+  const availableYears = useMemo(() => seasonYears.map((y) => y.year).sort((a, b) => b - a), [seasonYears])
 
   const seasonA = season?.years.find((y) => y.year === yearA)
   const seasonB = season?.years.find((y) => y.year === yearB)
 
-  const { curveA, curveB, meanCurve, p50Curve } = useMemo(() => {
-    if (!calendar || !climatology) {
-      return { curveA: [], curveB: [], meanCurve: [], p50Curve: [] }
-    }
+  const { curveA, curveB, meanCurve, p10Curve, bandCurve, cumA, cumB, cumMean } = useMemo(() => {
+    const empty = { curveA: [], curveB: [], meanCurve: [], p10Curve: [], bandCurve: [], cumA: [], cumB: [], cumMean: [] }
+    if (!calendar || !climatology) return empty
 
-    const mapA = new Map(
-      calendar.weeks.filter((w) => w.year === yearA).map((item) => [item.week, item.value])
-    )
-    const mapB = new Map(
-      calendar.weeks.filter((w) => w.year === yearB).map((item) => [item.week, item.value])
-    )
+    const byYear = (year: number) =>
+      new Map(calendar.weeks.filter((w) => w.year === year).map((item) => [item.week, item.value]))
+    const mapA = byYear(yearA)
+    const mapB = byYear(yearB)
+    const climMap = new Map(climatology.weeks.map((c) => [c.week, c]))
 
-    const cA: number[] = []
-    const cB: number[] = []
-    const cMean: number[] = []
-    const cP50: number[] = []
+    const cA: (number | null)[] = []
+    const cB: (number | null)[] = []
+    const mean: (number | null)[] = []
+    const p10: (number | null)[] = []
+    const band: (number | null)[] = []
+    const accA: (number | null)[] = []
+    const accB: (number | null)[] = []
+    const accM: (number | null)[] = []
+    let sumA = 0
+    let sumB = 0
+    let sumM = 0
 
     for (let w = 1; w <= 52; w++) {
-      cA.push(mapA.get(w) ?? 0)
-      cB.push(mapB.get(w) ?? 0)
-      const clim = climatology.weeks.find((cw) => cw.week === w)
-      cMean.push(clim?.mean ?? 0)
-      cP50.push(clim?.p50 ?? 0)
+      // Sin dato = hueco en la línea (null), nunca un cero falso
+      const a = mapA.get(w)
+      const b = mapB.get(w)
+      const c = climMap.get(w)
+      cA.push(a ?? null)
+      cB.push(b ?? null)
+      mean.push(c?.mean ?? null)
+      p10.push(c?.p10 ?? null)
+      band.push(c ? Math.max(0, c.p90 - c.p10) : null)
+
+      if (a !== undefined) sumA += a
+      if (b !== undefined) sumB += b
+      if (c) sumM += c.mean
+      accA.push(a !== undefined ? Math.round(sumA) : null)
+      accB.push(b !== undefined ? Math.round(sumB) : null)
+      accM.push(c ? Math.round(sumM) : null)
     }
 
-    return { curveA: cA, curveB: cB, meanCurve: cMean, p50Curve: cP50 }
+    return { curveA: cA, curveB: cB, meanCurve: mean, p10Curve: p10, bandCurve: band, cumA: accA, cumB: accB, cumMean: accM }
   }, [calendar, climatology, yearA, yearB])
+
+  const monthly = useMemo(
+    () => ({
+      a: monthlyTotals(calendar, yearA).map((v) => (v === null ? null : Math.round(v))),
+      b: monthlyTotals(calendar, yearB).map((v) => (v === null ? null : Math.round(v))),
+      mean: monthlyHistoricalMean(calendar).map((v) => (v === null ? null : Math.round(v))),
+    }),
+    [calendar, yearA, yearB]
+  )
 
   const totalA = seasonA?.total ?? 0
   const totalB = seasonB?.total ?? 0
   const diffPercent = totalB > 0 ? Math.round(((totalA - totalB) / totalB) * 100) : 0
+  const durationA = seasonA ? seasonA.end_week - seasonA.start_week : undefined
+  const durationB = seasonB ? seasonB.end_week - seasonB.start_week : undefined
 
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(11, 45, 91, 0.96)',
-      borderColor: '#FF7900',
-      borderWidth: 1,
-      textStyle: { color: '#ffffff', fontSize: 12 },
-      formatter: (params: Array<{ seriesName: string; value: number; dataIndex: number }>) => {
-        if (!params || params.length === 0) return ''
-        const week = params[0].dataIndex + 1
-        return `
-          <div style="font-family: inherit; line-height: 1.5; padding: 3px;">
-            <div style="font-weight: 800; color: #FF7900; margin-bottom: 4px; font-size: 13px;">
-              ${formatWeekFriendly(yearA, week)}
-            </div>
-            <div style="color: #FFC107; font-weight: 700;">
-              Año ${yearA}: <b>${curveA[week - 1]}</b> fire_cell_days
-            </div>
-            <div style="color: #60A5FA; font-weight: 700;">
-              Año ${yearB}: <b>${curveB[week - 1]}</b> fire_cell_days
-            </div>
-            <div style="color: #cbd5e1; font-size: 11px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 2px;">
-              Media Climatológica: <b>${meanCurve[week - 1]}</b>
-            </div>
-          </div>
-        `
-      },
-    },
-    legend: {
-      data: [`Año ${yearA}`, `Año ${yearB}`, 'Media Climatológica', 'Mediana (P50)'],
-      bottom: 0,
-      textStyle: { color: '#0B2D5B', fontSize: 11, fontWeight: 'bold' },
-    },
-    grid: {
-      top: '25px',
-      left: '45px',
-      right: '25px',
-      bottom: '50px',
-    },
-    xAxis: {
-      type: 'category',
-      data: Array.from({ length: 52 }, (_, i) => `S${i + 1}`),
-      boundaryGap: false,
-      axisLabel: { interval: 3, fontSize: 10, color: '#64748b', fontWeight: 'bold' },
-      axisLine: { lineStyle: { color: '#e2e8f0' } },
-    },
-    yAxis: {
-      type: 'value',
-      name: 'fire_cell_days',
-      nameTextStyle: { fontSize: 10, color: '#0B2D5B', fontWeight: 'bold' },
-      axisLabel: { fontSize: 10, color: '#64748b' },
-      splitLine: { lineStyle: { color: '#f1f5f9' } },
-    },
+  /* 1. Totales anuales: contexto para elegir años */
+  const annualOption = {
+    tooltip: { ...TOOLTIP, valueFormatter: (v: number) => `${Math.round(v).toLocaleString('es-EC')} fcd` },
+    grid: { top: 10, left: 50, right: 10, bottom: 28 },
+    xAxis: { ...AXIS_X, boundaryGap: true, data: seasonYears.map((y) => String(y.year)), axisLabel: { ...AXIS_X.axisLabel, interval: 1 } },
+    yAxis: AXIS_Y,
     series: [
       {
-        name: `Año ${yearA}`,
+        name: 'Total anual',
+        type: 'bar',
+        barWidth: '62%',
+        data: seasonYears.map((y) => ({
+          value: Math.round(y.total),
+          itemStyle: {
+            color: y.year === yearA ? COLOR_A : y.year === yearB ? COLOR_B : '#E2E8F0',
+            borderRadius: [6, 6, 0, 0],
+          },
+        })),
+      },
+    ],
+  }
+
+  /* 2. Actividad mensual frente al promedio histórico */
+  const monthlyOption = {
+    tooltip: { ...TOOLTIP, valueFormatter: (v: number | null) => (v === null ? '—' : `${v.toLocaleString('es-EC')} fcd`) },
+    legend: { ...LEGEND, data: [String(yearA), String(yearB), 'Promedio 2001–2025'] },
+    grid: { top: 16, left: 52, right: 16, bottom: 44 },
+    xAxis: { ...AXIS_X, boundaryGap: true, data: MONTHS_SHORT, axisLabel: { ...AXIS_X.axisLabel, interval: 0 } },
+    yAxis: AXIS_Y,
+    series: [
+      { name: String(yearA), type: 'bar', data: monthly.a, barGap: '10%', barMaxWidth: 18, itemStyle: { color: COLOR_A, borderRadius: [4, 4, 0, 0] } },
+      { name: String(yearB), type: 'bar', data: monthly.b, barMaxWidth: 18, itemStyle: { color: COLOR_B, borderRadius: [4, 4, 0, 0] } },
+      {
+        name: 'Promedio 2001–2025',
         type: 'line',
-        data: curveA,
-        lineStyle: { color: '#E53935', width: 3 },
-        itemStyle: { color: '#E53935' },
+        data: monthly.mean,
         symbol: 'circle',
         symbolSize: 5,
+        lineStyle: { color: '#94A3B8', width: 1.5, type: 'dashed' },
+        itemStyle: { color: '#94A3B8' },
       },
-      {
-        name: `Año ${yearB}`,
-        type: 'line',
-        data: curveB,
-        lineStyle: { color: '#0B2D5B', width: 3 },
-        itemStyle: { color: '#0B2D5B' },
-        symbol: 'diamond',
-        symbolSize: 5,
+    ],
+  }
+
+  /* 3. Curvas semanales con rango típico */
+  const weeklyOption = {
+    tooltip: {
+      ...TOOLTIP,
+      formatter: (params: Array<{ dataIndex: number }>) => {
+        if (!params?.length) return ''
+        const i = params[0].dataIndex
+        const fmt = (v: number | null) => (v === null ? '—' : v)
+        return `
+          <div style="line-height:1.6">
+            <div style="font-weight:800;color:#FF7900">${formatWeekFriendly(yearA, i + 1)}</div>
+            <div><span style="color:#FCA5A5">${yearA}:</span> <b>${fmt(curveA[i])}</b> fcd</div>
+            <div><span style="color:#93C5FD">${yearB}:</span> <b>${fmt(curveB[i])}</b> fcd</div>
+            <div style="color:#cbd5e1;font-size:11px">Media: ${fmt(meanCurve[i])}</div>
+          </div>`
       },
+    },
+    legend: { ...LEGEND, data: [String(yearA), String(yearB), 'Media', 'Rango P10–P90'] },
+    grid: { top: 16, left: 44, right: 16, bottom: 44 },
+    xAxis: { ...AXIS_X, data: WEEKS },
+    yAxis: AXIS_Y,
+    series: [
+      { name: 'P10', type: 'line', data: p10Curve, stack: 'band', symbol: 'none', lineStyle: { opacity: 0 }, silent: true },
       {
-        name: 'Media Climatológica',
+        name: 'Rango P10–P90',
         type: 'line',
-        data: meanCurve,
-        lineStyle: { color: '#64748B', width: 1.8, type: 'dashed' },
+        data: bandCurve,
+        stack: 'band',
         symbol: 'none',
+        lineStyle: { opacity: 0 },
+        areaStyle: { color: 'rgba(255, 121, 0, 0.12)' },
+        itemStyle: { color: 'rgba(255, 121, 0, 0.35)' },
+        silent: true,
       },
+      { name: 'Media', type: 'line', data: meanCurve, symbol: 'none', lineStyle: { color: '#94A3B8', width: 1.5, type: 'dashed' }, itemStyle: { color: '#94A3B8' } },
+      { name: String(yearB), type: 'line', data: curveB, symbol: 'none', lineStyle: { color: COLOR_B, width: 2.5 }, itemStyle: { color: COLOR_B } },
+      { name: String(yearA), type: 'line', data: curveA, symbol: 'none', lineStyle: { color: COLOR_A, width: 2.5 }, itemStyle: { color: COLOR_A } },
+    ],
+  }
+
+  /* 4. Acumulado: qué temporada se adelanta */
+  const cumulativeOption = {
+    tooltip: { ...TOOLTIP, valueFormatter: (v: number | null) => (v === null ? '—' : `${v.toLocaleString('es-EC')} fcd`) },
+    legend: { ...LEGEND, data: [String(yearA), String(yearB), 'Media'] },
+    grid: { top: 16, left: 52, right: 16, bottom: 44 },
+    xAxis: { ...AXIS_X, data: WEEKS },
+    yAxis: AXIS_Y,
+    series: [
+      { name: 'Media', type: 'line', data: cumMean, symbol: 'none', lineStyle: { color: '#94A3B8', width: 1.5, type: 'dashed' }, itemStyle: { color: '#94A3B8' } },
+      { name: String(yearB), type: 'line', data: cumB, symbol: 'none', lineStyle: { color: COLOR_B, width: 2.5 }, itemStyle: { color: COLOR_B } },
       {
-        name: 'Mediana (P50)',
+        name: String(yearA),
         type: 'line',
-        data: p50Curve,
-        lineStyle: { color: '#94A3B8', width: 1.2, type: 'dotted' },
+        data: cumA,
         symbol: 'none',
+        lineStyle: { color: COLOR_A, width: 2.5 },
+        itemStyle: { color: COLOR_A },
+        areaStyle: { color: 'rgba(229, 57, 53, 0.06)' },
       },
     ],
   }
 
   const handleExportPNG = () => {
-    if (chartRef.current) {
-      const instance = chartRef.current.getEchartsInstance()
-      exportChartToPNG(instance, `brasa_comparativa_${yearA}_vs_${yearB}`)
-    }
+    const instance = weeklyRef.current?.getEchartsInstance()
+    if (instance) exportChartToPNG(instance, `brasa_comparativa_${yearA}_vs_${yearB}`)
   }
 
+  const yearSelect = (value: number, onChange: (y: number) => void, color: string, label: string) => (
+    <label className="inline-flex items-center gap-2 pl-4 pr-2 py-1.5 rounded-full border border-slate-200 bg-white">
+      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="bg-transparent text-sm font-black text-[#0B1B3D] pr-1 focus:outline-hidden cursor-pointer"
+      >
+        {availableYears.map((y) => (
+          <option key={y} value={y}>
+            {y}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+
+  const rows = [
+    {
+      label: 'Total acumulado',
+      a: `${Math.round(totalA).toLocaleString('es-EC')} fcd`,
+      b: `${Math.round(totalB).toLocaleString('es-EC')} fcd`,
+      diff: `${diffPercent > 0 ? '+' : ''}${diffPercent}%`,
+    },
+    { label: 'Inicio de temporada', a: `Sem. ${seasonA?.start_week ?? '—'}`, b: `Sem. ${seasonB?.start_week ?? '—'}`, diff: weekDelta(seasonA?.start_week, seasonB?.start_week) },
+    { label: 'Semana pico', a: `Sem. ${seasonA?.peak_week ?? '—'}`, b: `Sem. ${seasonB?.peak_week ?? '—'}`, diff: weekDelta(seasonA?.peak_week, seasonB?.peak_week) },
+    { label: 'Fin de temporada', a: `Sem. ${seasonA?.end_week ?? '—'}`, b: `Sem. ${seasonB?.end_week ?? '—'}`, diff: weekDelta(seasonA?.end_week, seasonB?.end_week) },
+    { label: 'Duración', a: durationA !== undefined ? `${durationA} sem.` : '—', b: durationB !== undefined ? `${durationB} sem.` : '—', diff: weekDelta(durationA, durationB) },
+  ]
+
   return (
-    <div className="space-y-6 py-6 px-4 sm:px-6 lg:px-8 max-w-[1600px] mx-auto">
+    <div className="py-10 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-[1400px] mx-auto space-y-6 text-[#0B1B3D]">
       {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#0B2D5B] tracking-tight flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#FFF2E6] text-[#FF7900] flex items-center justify-center">
-              <GitCompare className="w-5 h-5" />
-            </div>
-            <span>Comparación Histórica Interanual</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Contraste de regímenes de fuego en {selectedRegion?.name || 'Ecuador'}.
-          </p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Análisis histórico</p>
+          <h1 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight leading-none">Año contra año</h1>
+          <p className="mt-3 text-slate-500">{selectedRegion?.name || 'Ecuador'}</p>
         </div>
-
-        {/* Selectores de Años */}
-        <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-[#E53935] inline-block" />
-            <span className="text-xs font-bold text-slate-600">Año A:</span>
-            <select
-              value={yearA}
-              onChange={(e) => setYearA(Number(e.target.value))}
-              className="bg-[#F4F6F9] rounded-xl px-2.5 py-1.5 text-xs font-black text-[#0B2D5B] border-0 focus:ring-2 focus:ring-[#E53935]"
-            >
-              {availableYears.map((y) => (
-                <option key={y} value={y}>
-                  {y} {y === 2024 || y === 2012 ? '🔥' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <span className="text-slate-300 font-black text-xs">vs</span>
-
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-[#0B2D5B] inline-block" />
-            <span className="text-xs font-bold text-slate-600">Año B:</span>
-            <select
-              value={yearB}
-              onChange={(e) => setYearB(Number(e.target.value))}
-              className="bg-[#F4F6F9] rounded-xl px-2.5 py-1.5 text-xs font-black text-[#0B2D5B] border-0 focus:ring-2 focus:ring-[#0B2D5B]"
-            >
-              {availableYears.map((y) => (
-                <option key={y} value={y}>
-                  {y} {y === 2024 || y === 2012 ? '🔥' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="flex items-center gap-3">
+          {yearSelect(yearA, setYearA, COLOR_A, 'Año A')}
+          <span className="text-sm font-bold text-slate-300">vs</span>
+          {yearSelect(yearB, setYearB, COLOR_B, 'Año B')}
         </div>
-      </div>
+      </header>
 
-      {/* Tarjetas comparativas rápidas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Total acumulado */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Actividad Total Acumulada</span>
-            <Flame className="w-4 h-4 text-[#FF7900]" />
-          </div>
-          <div className="flex items-baseline justify-between pt-1">
-            <div>
-              <span className="text-xl font-black text-[#E53935]">{yearA}:</span>
-              <span className="text-lg font-black ml-1 text-[#0B2D5B]">{totalA.toLocaleString()}</span>
-            </div>
-            <div>
-              <span className="text-xl font-black text-[#0B2D5B]">{yearB}:</span>
-              <span className="text-lg font-black ml-1 text-slate-700">{totalB.toLocaleString()}</span>
-            </div>
-          </div>
-          <div className="text-xs text-slate-500 pt-1 border-t border-slate-100 font-medium">
-            Diferencia: <b className={diffPercent >= 0 ? 'text-[#E53935]' : 'text-[#0B2D5B]'}>{diffPercent > 0 ? `+${diffPercent}%` : `${diffPercent}%`}</b> en {yearA} respecto a {yearB}
-          </div>
-        </div>
-
-        {/* Pico de temporada */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Semana Pico</span>
-            <Calendar className="w-4 h-4 text-[#E53935]" />
-          </div>
-          <div className="text-xs font-bold pt-1 space-y-1">
-            <div className="text-[#E53935]">
-              {yearA}: <span className="text-[#0B2D5B]">{formatWeekFriendly(yearA, seasonA?.peak_week || 36)}</span>
-            </div>
-            <div className="text-[#0B2D5B]">
-              {yearB}: <span className="text-slate-700">{formatWeekFriendly(yearB, seasonB?.peak_week || 36)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Duración de la temporada */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Ventana de Temporada</span>
-            <Clock className="w-4 h-4 text-[#FF7900]" />
-          </div>
-          <div className="text-xs font-medium space-y-1 pt-1">
-            <div>
-              <span className="font-bold text-[#E53935]">{yearA}:</span> Semanas {seasonA?.start_week || 28} a {seasonA?.end_week || 44}
-            </div>
-            <div>
-              <span className="font-bold text-[#0B2D5B]">{yearB}:</span> Semanas {seasonB?.start_week || 28} a {seasonB?.end_week || 44}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Gráfico comparativo de curvas */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-2">
-          <div>
-            <h3 className="font-extrabold text-[#0B2D5B] text-base tracking-tight">
-              Curvas de Actividad Semanal: {yearA} vs {yearB}
-            </h3>
-            <p className="text-xs text-slate-500 font-medium">
-              Serie armonizada expresada en fire_cell_days con referencia a la media y mediana histórica.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleExportPNG}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#0B2D5B] bg-[#F4F6F9] hover:bg-slate-200 rounded-xl transition-colors border border-slate-200/80 shadow-2xs"
+      {isLoading ? (
+        <ChartSkeleton height="h-80" />
+      ) : (
+        <>
+          <Card
+            eyebrow="Contexto"
+            title="Total anual 2001–2025"
+            subtitle="Clic en una barra para usarla como año A."
           >
-            <Download className="w-3.5 h-3.5 text-[#FF7900]" />
-            <span>Descargar PNG</span>
-          </button>
-        </div>
+            <div className="w-full h-[220px]">
+              <ReactECharts
+                option={annualOption}
+                style={{ height: '100%', width: '100%' }}
+                opts={{ renderer: 'canvas' }}
+                onEvents={{
+                  click: (p: { dataIndex: number }) => {
+                    const y = seasonYears[p.dataIndex]?.year
+                    if (y) setYearA(y)
+                  },
+                }}
+              />
+            </div>
+          </Card>
 
-        {isLoading ? (
-          <ChartSkeleton height="h-80" />
-        ) : (
-          <div className="w-full h-[380px]">
-            <ReactECharts
-              ref={chartRef}
-              option={option}
-              style={{ height: '100%', width: '100%' }}
-              opts={{ renderer: 'canvas' }}
-            />
-          </div>
-        )}
-      </div>
+          <Card
+            eyebrow="Mes a mes"
+            title={`${yearA} y ${yearB} frente al promedio`}
+            subtitle="Meses aproximados a partir de semanas ISO."
+          >
+            <div className="w-full h-[300px]">
+              <ReactECharts option={monthlyOption} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+            </div>
+          </Card>
 
-      {/* Tabla comparativa de temporadas históricas */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-        <h3 className="font-extrabold text-[#0B2D5B] text-base tracking-tight">
-          Tabla de Métricas Estacionales
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                <th className="py-2.5 px-3">Parámetro</th>
-                <th className="py-2.5 px-3 text-[#E53935] font-black">Año {yearA}</th>
-                <th className="py-2.5 px-3 text-[#0B2D5B] font-black">Año {yearB}</th>
-                <th className="py-2.5 px-3">Diferencia / Contraste</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              <tr>
-                <td className="py-3 px-3 font-bold text-[#0B2D5B]">Total Acumulado</td>
-                <td className="py-3 px-3 font-mono font-black text-[#E53935]">{totalA.toLocaleString()} fire_cell_days</td>
-                <td className="py-3 px-3 font-mono font-black text-[#0B2D5B]">{totalB.toLocaleString()} fire_cell_days</td>
-                <td className="py-3 px-3 font-extrabold text-slate-800">{diffPercent > 0 ? `+${diffPercent}%` : `${diffPercent}%`}</td>
-              </tr>
-              <tr>
-                <td className="py-3 px-3 font-bold text-[#0B2D5B]">Inicio de Temporada</td>
-                <td className="py-3 px-3 font-medium">Semana {seasonA?.start_week}</td>
-                <td className="py-3 px-3 font-medium">Semana {seasonB?.start_week}</td>
-                <td className="py-3 px-3 text-slate-500">{(seasonA?.start_week || 0) < (seasonB?.start_week || 0) ? 'Inicio anticipado en A' : 'Inicio similar'}</td>
-              </tr>
-              <tr>
-                <td className="py-3 px-3 font-bold text-[#0B2D5B]">Semana Pico</td>
-                <td className="py-3 px-3 font-bold text-[#E53935]">Semana {seasonA?.peak_week}</td>
-                <td className="py-3 px-3 font-bold text-[#0B2D5B]">Semana {seasonB?.peak_week}</td>
-                <td className="py-3 px-3 text-slate-500">Pico estacional andino (Agosto–Septiembre)</td>
-              </tr>
-              <tr>
-                <td className="py-3 px-3 font-bold text-[#0B2D5B]">Fin de Temporada</td>
-                <td className="py-3 px-3 font-medium">Semana {seasonA?.end_week}</td>
-                <td className="py-3 px-3 font-medium">Semana {seasonB?.end_week}</td>
-                <td className="py-3 px-3 text-slate-500">Transición al régimen húmedo</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+          <Card
+            eyebrow="Semana a semana"
+            title={curveView === 'semanal' ? `${yearA} vs ${yearB}` : '¿Qué temporada se adelantó?'}
+            subtitle={
+              curveView === 'semanal'
+                ? 'La banda naranja es el rango típico (P10–P90).'
+                : 'Suma de fire_cell_days a lo largo del año.'
+            }
+            action={
+              <div className="self-start sm:self-auto flex items-center gap-2">
+                <div className="inline-flex p-1 rounded-full border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setCurveView('semanal')}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                      curveView === 'semanal' ? 'bg-[#0B1B3D] text-white' : 'text-slate-500 hover:text-[#0B1B3D]'
+                    }`}
+                  >
+                    Semanal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurveView('acumulado')}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                      curveView === 'acumulado' ? 'bg-[#0B1B3D] text-white' : 'text-slate-500 hover:text-[#0B1B3D]'
+                    }`}
+                  >
+                    Acumulado
+                  </button>
+                </div>
+                {curveView === 'semanal' && (
+                  <button
+                    type="button"
+                    onClick={handleExportPNG}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full border border-slate-200 transition-colors duration-250 hover:bg-[#FFF8F2] hover:border-[#FF7900]/35"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#FF7900]" />
+                    <span>PNG</span>
+                  </button>
+                )}
+              </div>
+            }
+          >
+            <div className="w-full h-[360px]">
+              {curveView === 'semanal' ? (
+                <ReactECharts ref={weeklyRef} option={weeklyOption} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+              ) : (
+                <ReactECharts option={cumulativeOption} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+              )}
+            </div>
+          </Card>
+
+          <Card eyebrow="Métricas de temporada" title="Diferencias clave">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="text-xs text-slate-400">
+                    <th className="py-3 pr-4 font-medium">Parámetro</th>
+                    <th className="py-3 px-4 font-bold" style={{ color: COLOR_A }}>{yearA}</th>
+                    <th className="py-3 px-4 font-bold" style={{ color: COLOR_B }}>{yearB}</th>
+                    <th className="py-3 pl-4 font-medium text-right">Diferencia</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 border-t border-slate-100">
+                  {rows.map((r) => (
+                    <tr key={r.label}>
+                      <td className="py-4 pr-4 text-slate-500">{r.label}</td>
+                      <td className="py-4 px-4 font-bold">{r.a}</td>
+                      <td className="py-4 px-4 font-bold">{r.b}</td>
+                      <td className="py-4 pl-4 font-black text-right">{r.diff}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
     </div>
   )
 }
