@@ -66,7 +66,7 @@ export const Home: React.FC = () => {
             className="inline-flex items-center gap-2.5 px-6 sm:px-8 py-3 sm:py-3.5 bg-white hover:bg-slate-50 text-[#0B1B3D] font-bold rounded-full border border-slate-200 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all transform hover:-translate-y-0.5 text-sm sm:text-base"
           >
             <Users className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#0B1B3D]" />
-            <span>Acerca de nosotros (CODE RED)</span>
+            <span>Acerca de nosotros</span>
           </Link>
         </div>
       </div>

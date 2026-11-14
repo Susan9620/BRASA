@@ -32,6 +32,18 @@ describe('Componentes UI de BRASA', () => {
     expect(screen.getByRole('link', { name: /CODE RED/i })).toBeInTheDocument()
   })
 
+  it('no muestra los enlaces de navegación superior en páginas interiores', () => {
+    render(
+      <MemoryRouter initialEntries={['/explorar']}>
+        <Navbar />
+      </MemoryRouter>
+    )
+    expect(screen.getByText(/MODIS & VIIRS/i)).toBeInTheDocument()
+    // Los enlaces del menú superior de inicio no deben existir en el navbar en páginas interiores
+    expect(screen.queryByRole('link', { name: /^Dashboard$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Acerca de nosotros$/i })).not.toBeInTheDocument()
+  })
+
   it('renderiza mensaje de error con botón de reintento', () => {
     let retried = false
     render(
