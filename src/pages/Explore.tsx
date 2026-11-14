@@ -8,6 +8,15 @@ import { FireCalendar } from '../components/FireCalendar'
 import { TimelinePlayer } from '../components/TimelinePlayer'
 import { ExportControls } from '../components/ExportControls'
 import { ErrorMessage } from '../components/ErrorMessage'
+import { HarmonizationChart } from '../components/HarmonizationChart'
+import { MonthlyCalendar } from '../components/MonthlyCalendar'
+
+const SectionLabel: React.FC<{ title: string; note: string }> = ({ title, note }) => (
+  <div className="flex items-baseline gap-3 pt-2">
+    <h2 className="text-sm font-black uppercase tracking-[0.18em] text-[#0B1B3D]">{title}</h2>
+    <span className="text-sm text-slate-400">{note}</span>
+  </div>
+)
 
 export const Explore: React.FC = () => {
   const {
@@ -44,37 +53,46 @@ export const Explore: React.FC = () => {
     setCustomGeometry(null)
   }
 
-  return (
-    <div className="space-y-5 py-6 px-4 sm:px-6 lg:px-8 max-w-[1680px] mx-auto">
-      {/* 1. Título y área analizada idéntico a la captura */}
-      <div>
-        <h1 className="text-3xl sm:text-4xl font-black text-[#0B2D5B] tracking-tight">
-          Explorar
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-          Área analizada:{' '}
-          <strong className="text-slate-800 font-bold">
-            {selectedCanton ? selectedCanton.name : 'Riobamba'} - {selectedRegion?.name || 'Chimborazo'}
-          </strong>
-        </p>
-      </div>
+  const peakWeek = season?.years.find((y) => y.year === filters.selectedYear)?.peak_week
 
-      {/* Manejo de error si ocurriera */}
+  return (
+    <div className="py-10 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-[1680px] mx-auto space-y-6 text-[#0B1B3D]">
+      {/* Encabezado */}
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-5">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Dashboard</p>
+          <h1 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight leading-none">Explorar</h1>
+          <p className="mt-3 text-slate-500">
+            {selectedCanton ? selectedCanton.name : 'Riobamba'}, {selectedRegion?.name || 'Chimborazo'}
+          </p>
+        </div>
+
+        <ExportControls
+          calendar={calendar}
+          hotspots={hotspots}
+          climatology={climatology}
+          anomalies={anomalies}
+          selectedYear={filters.selectedYear}
+          selectedWeek={selectedWeek}
+        />
+      </header>
+
       {error && <ErrorMessage message={error} onRetry={refetch} />}
 
-      {/* 2. Fila de 4 KPI Cards (Overview) */}
       <KpiCards
         season={season}
         currentStatus={currentStatus}
+        calendar={calendar}
+        anomalies={anomalies}
         selectedYear={filters.selectedYear}
         isLoading={isLoading}
       />
 
-      {/* 3. Grid Principal de 2 Columnas idéntico a la captura */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Columna Izquierda: Mapa, Línea temporal, Exportación CSV y Calendario Heatmap */}
-        <div className="lg:col-span-8 space-y-4">
-          {/* Mapa Leaflet */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Columna principal */}
+        <div className="lg:col-span-8 space-y-6">
+          <SectionLabel title={`Año ${filters.selectedYear}`} note="Dónde y cuándo" />
+
           <MapView
             region={selectedRegion}
             canton={selectedCanton}
@@ -86,24 +104,26 @@ export const Explore: React.FC = () => {
             onClearGeometry={handleClearGeometry}
           />
 
-          {/* Línea Temporal de Observación */}
           <TimelinePlayer
             currentWeek={selectedWeek}
             selectedYear={filters.selectedYear}
             onWeekChange={(week) => setSelectedWeek(week)}
+            peakWeek={peakWeek}
           />
 
-          {/* Exportar Datos Científicos (CSV) */}
-          <ExportControls
+          <MonthlyCalendar
             calendar={calendar}
-            hotspots={hotspots}
-            climatology={climatology}
             anomalies={anomalies}
             selectedYear={filters.selectedYear}
             selectedWeek={selectedWeek}
+            isLoading={isLoading}
+            onSelectWeek={handleSelectWeekAndYear}
           />
 
-          {/* Calendario Histórico de Actividad Satelital (2001–2025) */}
+          <div className="pt-6">
+            <SectionLabel title="Serie histórica" note="2001–2025" />
+          </div>
+
           <FireCalendar
             calendar={calendar}
             isLoading={isLoading}
@@ -111,9 +131,11 @@ export const Explore: React.FC = () => {
             selectedWeek={selectedWeek}
             onSelectWeek={handleSelectWeekAndYear}
           />
+
+          <HarmonizationChart />
         </div>
 
-        {/* Columna Derecha: Filtros de Análisis */}
+        {/* Filtros */}
         <div className="lg:col-span-4">
           <FiltersPanel regions={regions} />
         </div>

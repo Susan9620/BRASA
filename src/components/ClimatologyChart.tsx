@@ -1,6 +1,6 @@
 import React, { useRef, useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { Activity, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
 import type { CalendarResponse, ClimatologyResponse } from '../types'
 import { ChartSkeleton } from './SkeletonLoader'
 import { exportChartToPNG } from '../utils/exportUtils'
@@ -192,34 +192,32 @@ export const ClimatologyChart: React.FC<ClimatologyChartProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-[#FFF2E6] text-[#FF7900] flex items-center justify-center shadow-2xs">
-            <Activity className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="font-extrabold text-[#0B2D5B] text-base tracking-tight">
-              Climatología Semanal vs Año {selectedYear}
-            </h3>
-            <p className="text-xs text-slate-500 font-medium">
-              Banda percentil P10–P90, media en azul marino y año {selectedYear} en rojo.
-            </p>
-          </div>
+    <div className="bg-white rounded-[32px] border border-slate-200/70 p-7 sm:p-10">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">
+            Climatología semanal
+          </p>
+          <h3 className="mt-2 text-2xl font-black tracking-tight text-[#0B1B3D]">
+            Histórico vs año {selectedYear}
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Banda P10–P90, media en azul marino y {selectedYear} en rojo.
+          </p>
         </div>
 
         <button
           type="button"
           onClick={handleExportPNG}
-          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#0B2D5B] bg-[#F4F6F9] hover:bg-slate-200 rounded-xl transition-colors border border-slate-200/80 shadow-2xs"
+          className="self-start sm:self-auto inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#0B1B3D] rounded-full border border-slate-200 transition-colors duration-250 hover:bg-[#FFF8F2] hover:border-[#FF7900]/35"
           title="Exportar gráfico de climatología a PNG"
         >
           <Download className="w-3.5 h-3.5 text-[#FF7900]" />
-          <span>Descargar PNG</span>
+          <span>PNG</span>
         </button>
       </div>
 
-      <div className="w-full h-[320px]">
+      <div className="mt-6 w-full h-[340px]">
         <ReactECharts
           ref={chartRef}
           option={option}

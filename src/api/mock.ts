@@ -254,6 +254,15 @@ function resolveSource(year: number, sensorFilter: string): SourceType {
   return 'VIIRS_CAL'
 }
 
+// Escala por sensor (datos simulados): VIIRS 375 m detecta ~2.3x más celdas activas que MODIS 1 km;
+// MODIS muestra una ligera pérdida de sensibilidad desde 2017 (envejecimiento de Terra/Aqua).
+// La serie armonizada calibra ambos sensores a una escala común (factor 1).
+function sensorScale(year: number, sensor?: string): number {
+  if (sensor === 'viirs') return 2.3
+  if (sensor === 'modis') return year >= 2017 ? 0.82 : 1
+  return 1
+}
+
 // Obtener factor de escala según filtros de confianza y día/noche
 function getFilterScales(confidence: string, daynight: string): number {
   let scale = 1.0
@@ -302,7 +311,7 @@ export function mockGetCalendar(params: BaseFilterParams): CalendarResponse {
   for (let y = yearFrom; y <= yearTo; y++) {
     for (let w = 1; w <= 52; w++) {
       const baseVal = calculateBaseFireValue(y, w, provFactor)
-      const adjustedVal = Math.round(baseVal * filterScale * 10) / 10
+      const adjustedVal = Math.round(baseVal * filterScale * sensorScale(y, params.sensor) * 10) / 10
       const source = resolveSource(y, params.sensor)
 
       weeks.push({
@@ -329,7 +338,7 @@ export function mockGetClimatology(params: BaseFilterParams): ClimatologyRespons
   for (let w = 1; w <= 52; w++) {
     const historicalValues: number[] = []
     for (let y = 2001; y <= 2025; y++) {
-      const val = calculateBaseFireValue(y, w, provFactor) * filterScale
+      const val = calculateBaseFireValue(y, w, provFactor) * filterScale * sensorScale(y, params.sensor)
       historicalValues.push(val)
     }
 
@@ -369,7 +378,7 @@ export function mockGetSeason(params: BaseFilterParams): SeasonResponse {
     const weekValues: number[] = []
 
     for (let w = 1; w <= 52; w++) {
-      const val = calculateBaseFireValue(y, w, provFactor) * filterScale
+      const val = calculateBaseFireValue(y, w, provFactor) * filterScale * sensorScale(y, params.sensor)
       weekValues.push(val)
       total += val
       if (val > maxVal) {
@@ -527,7 +536,10 @@ export function mockGetCurrentStatus(params: BaseFilterParams): CurrentStatusRes
   const provFactor = getProvinceFactor(params.province_id)
   const filterScale = getFilterScales(params.confidence, params.daynight)
 
-  const value = Math.round(calculateBaseFireValue(currentYear, currentWeek, provFactor) * filterScale * 10) / 10
+  const value =
+    Math.round(
+      calculateBaseFireValue(currentYear, currentWeek, provFactor) * filterScale * sensorScale(currentYear, params.sensor) * 10
+    ) / 10
   const climatology = mockGetClimatology(params)
   const climWeek = climatology.weeks.find((w) => w.week === currentWeek) || climatology.weeks[36]
 
@@ -550,6 +562,7 @@ export function mockGetCurrentStatus(params: BaseFilterParams): CurrentStatusRes
   }
 
   return {
+    year: currentYear,
     week: currentWeek,
     value,
     percentile,

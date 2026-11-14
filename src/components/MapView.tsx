@@ -152,21 +152,15 @@ export const MapView: React.FC<MapViewProps> = ({
   const activeRadius = customGeometry?.radiusMeters ?? coverageRadiusMeters ?? defaultRadius
 
   return (
-    <div ref={mapCardRef} className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3.5">
+    <div ref={mapCardRef} className="bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/70 space-y-4">
       {/* 1. Header principal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="font-black text-base text-[#0B2D5B] tracking-tight">
-              Mapa de Detección Satelital
-            </h2>
-            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#E8EEF5] text-[#0B2D5B]">
-              {region?.name || 'Chimborazo'}
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 font-medium mt-0.5">
-            Símbolos proporcionales por Potencia Radiativa (FRP) sobre cuadrícula de cobertura
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">
+            Mapa · {region?.name || 'Chimborazo'}
           </p>
+          <h2 className="mt-2 text-xl sm:text-2xl font-black tracking-tight text-[#0B1B3D]">Focos detectados</h2>
+          <p className="mt-1 text-sm text-slate-500">Tamaño según potencia radiativa (FRP).</p>
         </div>
 
         {/* Capas y conteo de focos */}

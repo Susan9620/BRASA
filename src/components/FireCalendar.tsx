@@ -1,10 +1,13 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { Calendar as CalendarIcon, Download, Play, Pause } from 'lucide-react'
+import { Download, Play, Pause } from 'lucide-react'
 import type { CalendarResponse, SourceType } from '../types'
 import { ChartSkeleton } from './SkeletonLoader'
 import { exportChartToPNG } from '../utils/exportUtils'
 import { formatWeekFriendly } from '../utils/dateUtils'
+import { useTimeline } from '../hooks/useTimeline'
+
+const VIIRS_START_YEAR = 2012
 
 interface FireCalendarProps {
   calendar: CalendarResponse | null
@@ -22,12 +25,10 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
   onSelectWeek,
 }) => {
   const chartRef = useRef<ReactECharts>(null)
-  const [isPlayingLocal, setIsPlayingLocal] = useState(false)
-  const [speedLocal, setSpeedLocal] = useState('1x')
 
   const { years, weeks, heatmapData, sourceLookup, maxValue } = useMemo(() => {
     if (!calendar || calendar.weeks.length === 0) {
-      return { years: [], weeks: [], heatmapData: [], sourceLookup: new Map(), maxValue: 100 }
+      return { years: [] as number[], weeks: [] as number[], heatmapData: [] as [number, number, number][], sourceLookup: new Map<string, SourceType>(), maxValue: 100 }
     }
 
     const yearsSet = new Set<number>()
@@ -62,6 +63,10 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
       maxValue: Math.ceil(max),
     }
   }, [calendar])
+
+  // Reproductor del calendario: recorre las semanas del año seleccionado
+  const handleWeekChange = useCallback((week: number) => onSelectWeek(selectedYear, week), [onSelectWeek, selectedYear])
+  const { isPlaying, speed, togglePlay, setSpeed, setWeek } = useTimeline(selectedWeek, handleWeekChange, 52)
 
   if (isLoading || !calendar) {
     return <ChartSkeleton height="h-96" />
@@ -109,9 +114,9 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
     },
     grid: {
       top: '10px',
-      bottom: '30px',
+      bottom: '64px',
       left: '46px',
-      right: '20px',
+      right: '96px',
     },
     xAxis: {
       type: 'category',
@@ -143,7 +148,16 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
     visualMap: {
       min: 0,
       max: maxValue,
-      show: false, // El heatmap se colorea suavemente sin barra fija estorbosa
+      show: true,
+      orient: 'horizontal',
+      left: 'center',
+      bottom: 0,
+      itemWidth: 10,
+      itemHeight: 220,
+      calculable: false,
+      text: [`${maxValue} fcd`, '0'],
+      textGap: 10,
+      textStyle: { color: '#64748b', fontSize: 11, fontWeight: 'bold' },
       inRange: {
         color: ['#FFFFFF', '#FFF9E6', '#FFD54F', '#FF7900', '#E53935', '#071C3A'],
       },
@@ -158,6 +172,22 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
           borderWidth: 0.5,
           borderColor: '#ffffff',
         },
+        // Inicio de la era VIIRS: desde aquí la serie combina ambos sensores armonizados
+        markLine: years.includes(VIIRS_START_YEAR)
+          ? {
+              silent: true,
+              symbol: 'none',
+              lineStyle: { color: '#0B1B3D', width: 1.5, type: 'dashed' },
+              label: {
+                formatter: 'Inicio VIIRS',
+                position: 'end',
+                color: '#0B1B3D',
+                fontSize: 11,
+                fontWeight: 'bold',
+              },
+              data: [{ yAxis: String(VIIRS_START_YEAR) }],
+            }
+          : undefined,
         emphasis: {
           itemStyle: {
             borderColor: '#071C3A',
@@ -189,37 +219,33 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
-      {/* 1. Header idéntico a la captura */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-[#FFF2E6] text-[#FF7900] flex items-center justify-center shadow-2xs">
-            <CalendarIcon className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="font-black text-[#0B2D5B] text-base tracking-tight">
-              Calendario Histórico de Actividad Satelital (2001–2025)
-            </h3>
-            <p className="text-xs text-slate-400 font-medium">
-              Matriz anual en semanas ISO expresada en{' '}
-              <span className="font-bold text-[#FF7900]">fire_cell_days</span>.
-            </p>
-          </div>
+    <div className="bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/70">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Calendario de quema</p>
+          <h3 className="mt-2 text-xl sm:text-2xl font-black tracking-tight text-[#0B1B3D]">
+            Actividad semanal 2001–2025
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Cada celda es una semana en fire_cell_days. Haz clic para verla en el mapa.
+          </p>
+          <p className="mt-1 text-xs font-bold text-[#FF7900]">
+            Seleccionada: {formatWeekFriendly(selectedYear, selectedWeek)} · {selectedYear}
+          </p>
         </div>
 
         <button
           type="button"
           onClick={handleExportPNG}
-          className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 bg-[#F4F6F9] hover:bg-slate-200 rounded-xl transition-colors border border-slate-200 shadow-2xs"
+          className="self-start sm:self-auto inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#0B1B3D] rounded-full border border-slate-200 transition-colors duration-250 hover:bg-[#FFF8F2] hover:border-[#FF7900]/35"
           title="Descargar gráfico en PNG"
         >
           <Download className="w-3.5 h-3.5 text-[#FF7900]" />
-          <span>Descargar PNG</span>
+          <span>PNG</span>
         </button>
       </div>
 
-      {/* 2. Matriz Heatmap */}
-      <div className="w-full h-[400px]">
+      <div className="mt-5 w-full h-[440px]">
         <ReactECharts
           ref={chartRef}
           option={option}
@@ -229,43 +255,46 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
         />
       </div>
 
-      {/* 3. Barra de reproducción inferior idéntica a la captura */}
-      <div className="pt-2 border-t border-slate-100 space-y-1">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setIsPlayingLocal(!isPlayingLocal)}
-            className="w-8 h-8 rounded-full bg-[#071C3A] hover:bg-[#0B2D5B] text-white flex items-center justify-center shadow-md shrink-0 transition-colors"
-          >
-            {isPlayingLocal ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
-          </button>
+      {/* Reproductor */}
+      <div className="mt-4 pt-5 border-t border-slate-100 flex flex-wrap items-center gap-4">
+        <button
+          type="button"
+          onClick={togglePlay}
+          className="w-10 h-10 shrink-0 rounded-full bg-[#0B1B3D] hover:bg-[#16437E] text-white flex items-center justify-center transition-colors"
+          aria-label={isPlaying ? 'Pausar recorrido del calendario' : 'Reproducir recorrido del calendario'}
+        >
+          {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+        </button>
 
+        <div className="flex-1 min-w-[180px]">
           <input
             type="range"
             min={1}
             max={52}
             value={selectedWeek}
-            onChange={(e) => onSelectWeek(selectedYear, Number(e.target.value))}
-            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#071C3A]"
+            onChange={(e) => setWeek(Number(e.target.value))}
+            className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-[#0B1B3D]"
+            aria-label="Semana del calendario"
           />
-
-          <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 shrink-0">
-            <span>Velocidad</span>
-            <select
-              value={speedLocal}
-              onChange={(e) => setSpeedLocal(e.target.value)}
-              className="bg-[#F4F6F9] border border-slate-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700"
-            >
-              <option value="0.5x">0.5x</option>
-              <option value="1x">1x</option>
-              <option value="2x">2x</option>
-            </select>
-          </div>
+          <p className="mt-1.5 text-xs text-slate-400">
+            Semana {selectedWeek} · {selectedYear}
+          </p>
         </div>
 
-        <p className="text-[11px] text-slate-400 font-semibold pl-11">
-          Semana {selectedWeek} • {selectedYear}
-        </p>
+        <div className="inline-flex p-1 rounded-full border border-slate-200">
+          {[0.5, 1, 2].map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSpeed(s)}
+              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-colors ${
+                speed === s ? 'bg-[#0B1B3D] text-white' : 'text-slate-500 hover:text-[#0B1B3D]'
+              }`}
+            >
+              {s}x
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -1,6 +1,9 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Users } from 'lucide-react'
+import { CursorGlow } from '../components/CursorGlow'
+import { usePointerEffects } from '../hooks/usePointerEffects'
+import { PRIMARY_BUTTON_FX, SECONDARY_BUTTON_FX } from '../utils/buttonFx'
 
 const BarChartFilled = ({ className = 'w-4 h-4' }: { className?: string }) => (
   <svg
@@ -16,14 +19,38 @@ const BarChartFilled = ({ className = 'w-4 h-4' }: { className?: string }) => (
 )
 
 export const Home: React.FC = () => {
+  const sectionRef = useRef<HTMLDivElement>(null)
+  const glowRef = useRef<HTMLDivElement>(null)
+  const earthRef = useRef<HTMLDivElement>(null)
+  const logoRef = useRef<HTMLDivElement>(null)
+  const logoGlowRef = useRef<HTMLSpanElement>(null)
+
+  usePointerEffects(sectionRef, {
+    glowRef,
+    parallaxRef: earthRef,
+    parallax: { x: 14, y: 6 },
+    magnetRef: logoRef,
+    magnetGlowRef: logoGlowRef,
+  })
+
   return (
-    <div className="relative min-h-[calc(100vh-73px)] flex flex-col justify-between bg-white overflow-hidden select-none">
+    <div
+      ref={sectionRef}
+      className="relative min-h-[calc(100vh-73px)] flex flex-col justify-between bg-white overflow-hidden select-none"
+    >
+      <CursorGlow ref={glowRef} />
+
       {/* Contenido Central Hero */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 pt-8 pb-4 sm:py-8 max-w-4xl mx-auto text-center z-10 w-full">
         {/* Ícono de Llama de BRASA con punta completa intacta */}
-        <div className="mb-3 sm:mb-4 transition-transform hover:scale-105 duration-300">
+        <div ref={logoRef} className="relative mb-3 sm:mb-4 will-change-transform">
+          <span
+            ref={logoGlowRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 scale-150 rounded-full opacity-0 bg-[radial-gradient(circle,rgba(255,121,0,0.28)_0%,rgba(255,121,0,0)_65%)]"
+          />
           <img
-            src="/brasa-flame.png"
+            src="/llama_brasa.PNG"
             alt="BRASA Logo"
             className="h-20 sm:h-24 md:h-28 w-auto mx-auto object-contain drop-shadow-xs"
           />
@@ -52,7 +79,7 @@ export const Home: React.FC = () => {
         <div className="flex flex-wrap items-center justify-center gap-3.5 sm:gap-4 pt-6 sm:pt-7">
           <Link
             to="/explorar"
-            className="inline-flex items-center gap-2.5 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-[#FF7900] to-[#FF5500] hover:from-[#E66D00] hover:to-[#E04800] text-white font-bold rounded-full shadow-lg shadow-[#FF7900]/25 hover:shadow-xl hover:shadow-[#FF7900]/35 transition-all transform hover:-translate-y-0.5 text-sm sm:text-base group"
+            className={`inline-flex items-center gap-2.5 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-[#FF7900] to-[#FF5500] hover:from-[#E66D00] hover:to-[#E04800] text-white font-bold rounded-full shadow-lg shadow-[#FF7900]/25 ${PRIMARY_BUTTON_FX} text-sm sm:text-base group`}
           >
             <BarChartFilled className="w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform group-hover:scale-110" />
             <span>Explorar Dashboard</span>
@@ -63,7 +90,7 @@ export const Home: React.FC = () => {
 
           <Link
             to="/equipo"
-            className="inline-flex items-center gap-2.5 px-6 sm:px-8 py-3 sm:py-3.5 bg-white hover:bg-slate-50 text-[#0B1B3D] font-bold rounded-full border border-slate-200 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all transform hover:-translate-y-0.5 text-sm sm:text-base"
+            className={`inline-flex items-center gap-2.5 px-6 sm:px-8 py-3 sm:py-3.5 bg-white text-[#0B1B3D] font-bold rounded-full border border-slate-200 shadow-2xs ${SECONDARY_BUTTON_FX} text-sm sm:text-base`}
           >
             <Users className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#0B1B3D]" />
             <span>Acerca de nosotros</span>
@@ -73,14 +100,14 @@ export const Home: React.FC = () => {
 
       {/* Gráfico Curvo del Planeta Tierra con Ecuador iluminado en el horizonte */}
       <div className="w-full relative mt-auto flex justify-center items-end overflow-hidden pointer-events-none select-none">
-        <picture className="w-full flex justify-center">
-          <source srcSet="/earth-ecuador.webp" type="image/webp" />
+        <div ref={earthRef} className="w-full -mb-2 flex justify-center will-change-transform">
+          {/* PNG con fondo transparente; se recorta el margen vacío superior (aspect 4/1, anclada abajo) */}
           <img
-            src="/earth-ecuador.png"
+            src="/Landing_planeta.PNG"
             alt="Ecuador iluminado desde el espacio con actividad satelital de quemas"
-            className="w-full max-w-[1500px] 2xl:max-w-[1850px] h-auto object-contain object-bottom pointer-events-none"
+            className="w-full max-w-[1400px] 2xl:max-w-[1700px] aspect-[4/1] object-cover object-bottom pointer-events-none"
           />
-        </picture>
+        </div>
       </div>
     </div>
   )

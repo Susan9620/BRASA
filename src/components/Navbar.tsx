@@ -1,141 +1,89 @@
 import React, { useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import {
-  Flame,
-  Satellite,
-  Compass,
-  GitCompare,
-  AlertTriangle,
-  Users,
-  Menu,
-  X,
-  ExternalLink,
-} from 'lucide-react'
+import { Satellite, Menu, X } from 'lucide-react'
+import { isLandingPath } from '../utils/routes'
 import { IS_MOCK_MODE } from '../api/client'
+import { NAV_ITEMS } from '../utils/navItems'
+
+/* Enlaces superiores de las páginas informativas */
+const TOP_LINKS = [
+  { to: '/', label: 'Inicio', end: true },
+  { to: '/explorar', label: 'Explorar' },
+  { to: '/metodologia', label: 'Metodología' },
+  { to: '/equipo', label: 'Acerca de nosotros' },
+]
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const location = useLocation()
-  const isHomePage = location.pathname === '/'
+  const isLanding = isLandingPath(location.pathname)
 
-  const navItems = [
-    { to: '/', label: 'Inicio', icon: Flame, end: true },
-    { to: '/explorar', label: 'Dashboard', icon: Compass },
-    { to: '/comparar', label: 'Comparar', icon: GitCompare },
-    { to: '/alertas', label: 'Alertas', icon: AlertTriangle },
-    { to: '/equipo', label: 'Acerca de nosotros (CODE RED)', icon: Users },
-  ]
+  /* En páginas interiores el sidebar aparece desde lg: el menú móvil cubre todo lo anterior */
+  const mobileOnly = isLanding ? 'md:hidden' : 'lg:hidden'
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-100 transition-colors">
+    <header className="sticky top-0 z-40 bg-white border-b border-slate-100">
       <div className="w-full max-w-[1680px] mx-auto px-6 sm:px-10 lg:px-12 h-18 flex items-center justify-between">
-        {/* Marca: Logo Llama + Texto BRASA */}
-        <Link
-          to="/"
-          className="flex items-center gap-2.5 sm:gap-3 group focus:outline-hidden py-1"
-        >
+        {/* Marca */}
+        <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group focus:outline-hidden py-1">
           <img
-            src="/brasa-flame.png"
+            src="/llama_brasa.PNG"
             alt="BRASA Logo"
             className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
           />
-          <span className="text-2xl sm:text-[26px] font-black tracking-wider text-[#0B1B3D]">
-            BRASA
-          </span>
-          {!isHomePage && (
+          <span className="text-2xl sm:text-[26px] font-black tracking-wider text-[#0B1B3D]">BRASA</span>
+          {!isLanding && (
             <div className="hidden sm:block pl-3 ml-1 border-l border-slate-200">
-              <div className="flex items-center gap-2">
-                <span className="font-black text-xs uppercase tracking-wider text-[#0B2D5B]">
-                  NASA SPACE APPS
-                </span>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#FFF2E6] text-[#FF7900] border border-[#FF7900]/40">
-                  2026
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 font-semibold tracking-tight">
-                Bitácora Regional de Actividad Satelital Armonizada
-              </p>
+              <span className="block font-black text-xs uppercase tracking-wider text-[#0B1B3D]">
+                NASA Space Apps <span className="text-[#FF7900]">2026</span>
+              </span>
+              <p className="text-xs text-slate-500">Bitácora Regional de Actividad Satelital Armonizada</p>
             </div>
           )}
         </Link>
 
-        {/* Enlaces de Navegación de Escritorio: ÚNICAMENTE en la página de inicio */}
-        {isHomePage ? (
+        {isLanding ? (
           <nav className="hidden md:flex items-center gap-8 lg:gap-10">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                `relative py-2 text-sm sm:text-base font-semibold transition-colors flex flex-col items-center ${
-                  isActive ? 'text-[#FF7900]' : 'text-[#0B1B3D] hover:text-[#FF7900]'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span>Inicio</span>
-                  {isActive && (
-                    <span className="absolute -bottom-1 left-0 right-0 h-0.75 bg-[#FF7900] rounded-full" />
-                  )}
-                </>
-              )}
-            </NavLink>
-
-            <NavLink
-              to="/explorar"
-              className={({ isActive }) =>
-                `relative py-2 text-sm sm:text-base font-semibold transition-colors flex flex-col items-center ${
-                  isActive ? 'text-[#FF7900]' : 'text-[#0B1B3D] hover:text-[#FF7900]'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span>Dashboard</span>
-                  {isActive && (
-                    <span className="absolute -bottom-1 left-0 right-0 h-0.75 bg-[#FF7900] rounded-full" />
-                  )}
-                </>
-              )}
-            </NavLink>
-
-            <NavLink
-              to="/equipo"
-              className={({ isActive }) =>
-                `relative py-2 text-sm sm:text-base font-semibold transition-colors flex flex-col items-center ${
-                  isActive ? 'text-[#FF7900]' : 'text-[#0B1B3D] hover:text-[#FF7900]'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span>Acerca de nosotros</span>
-                  {isActive && (
-                    <span className="absolute -bottom-1 left-0 right-0 h-0.75 bg-[#FF7900] rounded-full" />
-                  )}
-                </>
-              )}
-            </NavLink>
+            {TOP_LINKS.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                className={({ isActive }) =>
+                  `relative py-2 text-sm sm:text-base font-semibold transition-colors ${
+                    isActive ? 'text-[#FF7900]' : 'text-[#0B1B3D] hover:text-[#FF7900]'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <span>{link.label}</span>
+                    {isActive && (
+                      <span className="absolute -bottom-1 left-0 right-0 h-0.75 bg-[#FF7900] rounded-full" />
+                    )}
+                  </>
+                )}
+              </NavLink>
+            ))}
           </nav>
         ) : (
-          /* Estado del sistema en páginas interiores (el Sidebar izquierdo maneja la navegación) */
-          <div className="hidden lg:flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#0B2D5B] bg-[#F4F6F9] px-3.5 py-1.5 rounded-xl border border-slate-200">
-              <Satellite className="w-4 h-4 text-[#FF7900]" />
-              <span>MODIS & VIIRS</span>
-            </div>
-
+          <div className="hidden lg:flex items-center gap-2">
+            {/* Indicador persistente mientras no haya base de datos conectada (el banner se puede cerrar) */}
             {IS_MOCK_MODE && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#FFF9E6] text-[#0B2D5B] border border-[#FFC107]/50 shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-[#FF7900] animate-pulse" />
-                <span>Modo Mock Activo</span>
+              <span className="inline-flex items-center gap-2 text-xs font-bold text-[#B45309] px-3.5 py-1.5 rounded-full bg-[#FFF9E6]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FF7900]" />
+                Datos simulados
               </span>
             )}
+            <span className="inline-flex items-center gap-2 text-xs font-bold text-[#0B1B3D] px-3.5 py-1.5 rounded-full border border-slate-200">
+              <Satellite className="w-4 h-4 text-[#FF7900]" />
+              MODIS & VIIRS
+            </span>
           </div>
         )}
 
-        {/* Botón menú móvil (visible solo en pantallas pequeñas) */}
-        <div className="flex md:hidden items-center">
+        {/* Botón de menú (móvil y tablet) */}
+        <div className={`flex items-center ${mobileOnly}`}>
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -148,10 +96,10 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* Menú Desplegable Móvil */}
+      {/* Menú desplegable */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-100 bg-white px-5 pt-3 pb-6 space-y-1 shadow-xl">
-          {navItems.map((item) => {
+        <div className={`${mobileOnly} border-t border-slate-100 bg-white px-5 pt-3 pb-6 space-y-1 shadow-xl`}>
+          {NAV_ITEMS.map((item) => {
             const Icon = item.icon
             return (
               <NavLink
@@ -161,9 +109,7 @@ export const Navbar: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-colors ${
-                    isActive
-                      ? 'bg-[#0B1B3D] text-white font-bold'
-                      : 'text-slate-600 hover:text-[#0B1B3D] hover:bg-slate-50'
+                    isActive ? 'bg-[#0B1B3D] text-white font-bold' : 'text-slate-600 hover:text-[#0B1B3D] hover:bg-slate-50'
                   }`
                 }
               >
@@ -174,9 +120,7 @@ export const Navbar: React.FC = () => {
           })}
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 px-3">
             <span>Equipo CODE RED</span>
-            <span className="flex items-center gap-1 font-bold text-[#FF7900]">
-              NASA Space Apps 2026 <ExternalLink className="w-3 h-3" />
-            </span>
+            <span className="font-bold text-[#FF7900]">NASA Space Apps 2026</span>
           </div>
         </div>
       )}

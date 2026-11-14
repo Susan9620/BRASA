@@ -5,7 +5,7 @@ export const SkeletonBox: React.FC<{ className?: string }> = ({ className = '' }
 )
 
 export const KpiCardSkeleton: React.FC = () => (
-  <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 shadow-xs space-y-3">
+  <div className="bg-white rounded-[28px] p-6 border border-slate-200/70 space-y-3">
     <div className="flex items-center justify-between">
       <SkeletonBox className="h-4 w-28" />
       <SkeletonBox className="h-8 w-8 rounded-lg" />
@@ -16,7 +16,7 @@ export const KpiCardSkeleton: React.FC = () => (
 )
 
 export const ChartSkeleton: React.FC<{ height?: string }> = ({ height = 'h-72' }) => (
-  <div className={`bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col justify-between ${height}`}>
+  <div className={`bg-white rounded-[28px] p-6 border border-slate-200/70 flex flex-col justify-between ${height}`}>
     <div className="flex items-center justify-between">
       <SkeletonBox className="h-5 w-40" />
       <SkeletonBox className="h-4 w-20" />
