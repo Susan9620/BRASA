@@ -24,6 +24,14 @@ export interface CustomGeometry {
   geojson?: GeoJSON.GeoJsonObject
 }
 
+export interface CountryItem {
+  code: string
+  name: string
+  lat: number
+  lon: number
+  zoom?: number
+}
+
 export interface BaseFilterParams {
   year_from: number
   year_to: number
@@ -32,6 +40,7 @@ export interface BaseFilterParams {
   daynight: DayNight
   geojson?: GeoJSON.GeoJsonObject
   bbox?: [number, number, number, number] // [minLon, minLat, maxLon, maxLat]
+  country_code?: string
   province_id?: string
   canton_id?: string
 }
@@ -134,7 +143,8 @@ export type RegionsResponse = Region[]
 
 // Estado de filtros del cliente
 export interface FilterState {
-  country: string // 'Ecuador'
+  country: string // 'ECU'
+  countryName: string // 'Ecuador'
   provinceId: string
   cantonId: string
   yearRange: [number, number] // [2001, 2025]

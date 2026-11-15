@@ -90,7 +90,6 @@ export const Metodologia: React.FC = () => {
               className={`mt-10 inline-flex items-center gap-2.5 px-7 py-3.5 bg-gradient-to-r from-[#FF7900] to-[#FF5500] text-white font-bold rounded-full shadow-lg shadow-[#FF7900]/25 ${PRIMARY_BUTTON_FX} group`}
             >
               <span>Explorar los datos</span>
-              <span className="text-lg leading-none transition-transform group-hover:translate-x-1">→</span>
             </Link>
           </div>
         </div>

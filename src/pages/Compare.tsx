@@ -7,6 +7,7 @@ import { exportChartToPNG } from '../utils/exportUtils'
 import { formatWeekFriendly } from '../utils/dateUtils'
 import { ChartSkeleton } from '../components/SkeletonLoader'
 import { MONTHS_SHORT, monthlyHistoricalMean, monthlyTotals } from '../utils/monthly'
+import { getProvincesForCountry } from '../utils/territoryData'
 
 const COLOR_A = '#E53935'
 const COLOR_B = '#0B1B3D'
@@ -78,7 +79,11 @@ export const Compare: React.FC = () => {
   const [curveView, setCurveView] = useState<'semanal' | 'acumulado'>('semanal')
   const weeklyRef = useRef<ReactECharts>(null)
 
-  const selectedRegion = regions?.find((r) => r.id === filters.provinceId) || regions?.[0]
+  const availableProvinces = getProvincesForCountry(filters.country)
+  const selectedRegion =
+    availableProvinces.find((r) => r.id === filters.provinceId) ||
+    regions?.find((r) => r.id === filters.provinceId) ||
+    availableProvinces[0]
 
   const seasonYears = useMemo(() => [...(season?.years ?? [])].sort((a, b) => a.year - b.year), [season])
   const availableYears = useMemo(() => seasonYears.map((y) => y.year).sort((a, b) => b - a), [seasonYears])

@@ -11,6 +11,7 @@ import {
 import { useFilters } from '../hooks/useFilters'
 import type { RegionsResponse, SensorType, ConfidenceLevel, DayNight } from '../types'
 import { circleToPolygonGeoJSON } from '../utils/geoUtils'
+import { COUNTRIES, getProvincesForCountry } from '../utils/territoryData'
 
 interface FiltersPanelProps {
   regions: RegionsResponse | null
@@ -29,6 +30,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
     filters,
     coverageRadiusMeters,
     setCoverageRadiusMeters,
+    setCountry,
     setProvinceId,
     setCantonId,
     setYearRange,
@@ -45,7 +47,11 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
   const [geoJsonFileName, setGeoJsonFileName] = useState<string | null>(null)
   const [coverageMode, setCoverageMode] = useState<'circle' | 'polygon'>('circle')
 
-  const selectedRegion = regions?.find((r) => r.id === filters.provinceId) || regions?.[0]
+  const availableProvinces = getProvincesForCountry(filters.country)
+  const selectedRegion =
+    availableProvinces.find((r) => r.id === filters.provinceId) ||
+    regions?.find((r) => r.id === filters.provinceId) ||
+    availableProvinces[0]
   const cantons = selectedRegion?.cantons || []
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,41 +109,59 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
         </button>
       </div>
 
-      {/* 2. Ubicación territorial */}
+      {/* 2. Ubicación territorial jerárquica */}
       <div className="space-y-2">
         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
           UBICACIÓN TERRITORIAL
         </label>
         <div>
-          <span className="text-xs text-slate-400 font-medium block mb-1">País</span>
-          <input
-            type="text"
-            readOnly
-            value="Ecuador"
-            className="w-full bg-[#F4F6F9] border border-slate-200 rounded-xl px-3 py-2 text-[#0B2D5B] font-bold cursor-not-allowed text-xs"
-          />
+          <label htmlFor="country-select" className="text-xs text-slate-400 font-medium block mb-1">
+            País
+          </label>
+          <div className="relative">
+            <select
+              id="country-select"
+              value={filters.country}
+              onChange={(e) => {
+                const c = COUNTRIES.find((item) => item.code === e.target.value)
+                setCountry(
+                  e.target.value,
+                  c?.name.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim(),
+                  c ? [c.lat, c.lon] : undefined
+                )
+              }}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-[#0B2D5B] focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs cursor-pointer"
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label htmlFor="province-select" className="text-xs text-slate-400 font-medium block mb-1">
-              Provincia
+              Provincia / Estado
             </label>
             <div className="relative">
               <select
                 id="province-select"
                 value={filters.provinceId}
                 onChange={(e) => {
-                  const reg = regions?.find((r) => r.id === e.target.value)
+                  const reg = availableProvinces.find((r) => r.id === e.target.value)
                   setProvinceId(e.target.value, reg?.center)
                 }}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs cursor-pointer"
               >
-                {regions?.map((r) => (
+                {availableProvinces.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
                   </option>
-                )) || <option value="chimborazo">Chimborazo</option>}
+                ))}
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -155,7 +179,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
                   const c = cantons.find((item) => item.id === e.target.value)
                   setCantonId(e.target.value, c ? [c.lat, c.lon] : undefined)
                 }}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs cursor-pointer"
               >
                 <option value="">(Toda la provincia)</option>
                 {cantons.map((c) => (

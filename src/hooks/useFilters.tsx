@@ -1,4 +1,5 @@
 // Contexto y Hook de Filtros para BRASA
+// Soporte jerárquico completo: País -> Provincia -> Ciudad / Cantón
 
 import React, { createContext, useContext, useState, useMemo } from 'react'
 import type {
@@ -9,6 +10,7 @@ import type {
   SensorType,
 } from '../types'
 import { circleToPolygonGeoJSON } from '../utils/geoUtils'
+import { getProvincesForCountry } from '../utils/territoryData'
 
 export interface FiltersContextType {
   filters: FilterState
@@ -16,6 +18,7 @@ export interface FiltersContextType {
   coverageRadiusMeters: number
   setSelectedWeek: (week: number) => void
   setCoverageRadiusMeters: (radius: number) => void
+  setCountry: (code: string, name?: string, center?: [number, number]) => void
   setProvinceId: (id: string, center?: [number, number]) => void
   setCantonId: (id: string, center?: [number, number]) => void
   setYearRange: (range: [number, number]) => void
@@ -32,7 +35,8 @@ export interface FiltersContextType {
 const DEFAULT_RADIUS = 18500
 
 const DEFAULT_FILTERS: FilterState = {
-  country: 'Ecuador',
+  country: 'ECU',
+  countryName: 'Ecuador',
   provinceId: 'chimborazo',
   cantonId: 'riobamba',
   yearRange: [2001, 2025],
@@ -77,14 +81,40 @@ export const FiltersProvider: React.FC<{ children: React.ReactNode }> = ({ child
     })
   }
 
+  const setCountry = (code: string, name?: string, center?: [number, number]) => {
+    const provs = getProvincesForCountry(code)
+    const firstProv = provs[0]
+    const firstCanton = firstProv?.cantons?.[0]
+    const newCenter = center || firstProv?.center || [-1.6709, -78.6545]
+    const radius = filters.coverageRadiusMeters || DEFAULT_RADIUS
+
+    setFilters((prev) => ({
+      ...prev,
+      country: code,
+      countryName: name || (code === 'ECU' ? 'Ecuador' : code),
+      provinceId: firstProv ? firstProv.id : '',
+      cantonId: firstCanton ? firstCanton.id : '',
+      customGeometry: {
+        type: 'circle',
+        center: newCenter,
+        radiusMeters: radius,
+        geojson: circleToPolygonGeoJSON(newCenter[0], newCenter[1], radius),
+      },
+    }))
+  }
+
   const setProvinceId = (provinceId: string, center?: [number, number]) => {
     setFilters((prev) => {
-      const newCenter = center || (provinceId === 'chimborazo' ? [-1.6709, -78.6545] : [-0.2298, -78.5249])
+      const provs = getProvincesForCountry(prev.country)
+      const prov = provs.find((p) => p.id === provinceId)
+      const firstCanton = prov?.cantons?.[0]
+      const newCenter = center || prov?.center || (provinceId === 'chimborazo' ? [-1.6709, -78.6545] : [-0.2298, -78.5249])
       const radius = prev.coverageRadiusMeters || DEFAULT_RADIUS
+
       return {
         ...prev,
         provinceId,
-        cantonId: provinceId === 'chimborazo' ? 'riobamba' : '',
+        cantonId: firstCanton ? firstCanton.id : '',
         customGeometry: {
           type: 'circle',
           center: newCenter,
@@ -154,6 +184,7 @@ export const FiltersProvider: React.FC<{ children: React.ReactNode }> = ({ child
       coverageRadiusMeters,
       setSelectedWeek,
       setCoverageRadiusMeters,
+      setCountry,
       setProvinceId,
       setCantonId,
       setYearRange,

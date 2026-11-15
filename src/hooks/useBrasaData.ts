@@ -85,6 +85,7 @@ export function useBrasaData(): BrasaDataState {
     setError(null)
 
     const baseParams = {
+      country_code: filters.country || 'ECU',
       year_from: filters.yearRange[0],
       year_to: filters.yearRange[1],
       sensor: filters.sensor,
@@ -117,6 +118,7 @@ export function useBrasaData(): BrasaDataState {
         setIsLoading(false)
       })
   }, [
+    filters.country,
     filters.provinceId,
     filters.cantonId,
     filters.yearRange,

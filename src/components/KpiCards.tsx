@@ -107,7 +107,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
               {status.label}
             </span>
           }
-          note={<span className="font-bold text-[#FF7900]">Ver diagnóstico →</span>}
+          note={<span className="font-bold text-[#FF7900]">Ver diagnóstico</span>}
         />
       </Link>
     </div>

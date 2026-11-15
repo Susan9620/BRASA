@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import {
   MapContainer,
   TileLayer,
@@ -15,6 +16,7 @@ import {
   ChevronRight,
   Download,
   PenTool,
+  ArrowUpRight,
 } from 'lucide-react'
 import type { HotspotsResponse, Region, Canton, CustomGeometry } from '../types'
 import { formatCoordinates } from '../utils/geoUtils'
@@ -317,6 +319,14 @@ export const MapView: React.FC<MapViewProps> = ({
                         {formatCoordinates(pt.lat, pt.lon)}
                       </span>
                     </div>
+
+                    <Link
+                      to={`/simulador?lat=${pt.lat}&lon=${pt.lon}&frp=${pt.frp}&sensor=${pt.sensor}&date=${pt.date}`}
+                      className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#FF7900] to-[#E66D00] text-white text-[11px] font-black shadow-xs hover:shadow-md transition-all text-center no-underline"
+                    >
+                      <Flame className="w-3.5 h-3.5 fill-current" />
+                      <span>Simular en FireCast Táctico ➔</span>
+                    </Link>
                   </div>
                 </Popup>
               </CircleMarker>
@@ -374,14 +384,30 @@ export const MapView: React.FC<MapViewProps> = ({
       </div>
 
       {showHotspotsDrawer && (
-        <div className="pt-2 border-t border-slate-100 max-h-48 overflow-y-auto space-y-1">
+        <div className="pt-2 border-t border-slate-100 max-h-56 overflow-y-auto space-y-1.5">
           {points.length === 0 ? (
             <p className="text-xs text-slate-400 py-2">No se registran focos activos en esta semana.</p>
           ) : (
-            points.slice(0, 10).map((pt, i) => (
-              <div key={i} className="flex items-center justify-between text-[11px] py-1 px-2 rounded-lg hover:bg-[#F4F6F9]">
-                <span className="font-mono text-slate-600">{pt.date} • {formatCoordinates(pt.lat, pt.lon)}</span>
-                <span className="font-bold text-[#E53935]">{pt.frp} MW ({pt.sensor})</span>
+            points.slice(0, 15).map((pt, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between text-[11px] py-1.5 px-2.5 rounded-xl bg-slate-50 border border-slate-100 hover:bg-orange-50/50 hover:border-orange-200 transition-colors"
+              >
+                <div className="flex flex-col">
+                  <span className="font-mono text-slate-700 font-semibold">
+                    {pt.date} • {formatCoordinates(pt.lat, pt.lon)}
+                  </span>
+                  <span className="font-bold text-[#E53935]">
+                    {pt.frp} MW ({pt.sensor})
+                  </span>
+                </div>
+                <Link
+                  to={`/simulador?lat=${pt.lat}&lon=${pt.lon}&frp=${pt.frp}&sensor=${pt.sensor}&date=${pt.date}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0B1B3D] text-white text-[10px] font-bold hover:bg-[#FF7900] transition-colors"
+                >
+                  <span>Simular</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </Link>
               </div>
             ))
           )}

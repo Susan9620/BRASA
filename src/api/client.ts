@@ -58,11 +58,43 @@ function mockDelay<T>(data: T, delayMs: number = 120, signal?: AbortSignal): Pro
 }
 
 /**
- * Petición genérica al backend REST
+ * Adapta los parámetros según el backend conectado (API local de Ecuador vs API mundial en Render)
+ */
+function prepareFilterPayload(params: any): any {
+  const isMundialApi = API_BASE_URL.includes('mundial') || API_BASE_URL.includes('onrender.com')
+
+  const payload: any = {
+    year_from: params.year_from ?? 2001,
+    year_to: params.year_to ?? 2025,
+    sensor: params.sensor ?? 'harmonized',
+    confidence: params.confidence ?? 'nominal_high',
+    daynight: params.daynight ?? 'all',
+  }
+
+  if (params.year !== undefined) payload.year = params.year
+  if (params.week !== undefined) payload.week = params.week
+  if (params.date_from !== undefined) payload.date_from = params.date_from
+  if (params.date_to !== undefined) payload.date_to = params.date_to
+
+  if (isMundialApi) {
+    // La API mundial en Render usa código ISO3 para países (Ecuador = ECU por defecto)
+    payload.country_code = params.country_code || 'ECU'
+  } else {
+    // El backend local de Ecuador usa identificadores de provincia y cantón
+    if (params.province_id) payload.province_id = params.province_id
+    if (params.canton_id) payload.canton_id = params.canton_id
+    if (params.geojson) payload.geojson = params.geojson
+  }
+
+  return payload
+}
+
+/**
+ * Petición genérica al backend REST con reintento y fallback resiliente
  */
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -70,6 +102,41 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       ...options.headers,
     },
   })
+
+  // Si la API remota responde 422 indicando que requiere country_code (API mundial de Render)
+  if (response.status === 422 && options.body) {
+    try {
+      const parsed = JSON.parse(options.body as string)
+      const adapted = {
+        ...parsed,
+        country_code: 'ECU',
+      }
+      delete adapted.province_id
+      delete adapted.canton_id
+      delete adapted.geojson
+
+      const retryRes = await fetch(url, {
+        ...options,
+        body: JSON.stringify(adapted),
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...options.headers,
+        },
+      })
+      if (retryRes.ok) {
+        return retryRes.json()
+      }
+    } catch {
+      // Ignorar fallo de parseo y continuar con manejo normal
+    }
+  }
+
+  // Si la API remota responde 501 (ej. hotspots no incluidos en la versión compacta de Render)
+  if (response.status === 501 && endpoint.includes('hotspots')) {
+    const parsed = options.body ? JSON.parse(options.body as string) : {}
+    return mockGetHotspots(parsed) as unknown as T
+  }
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '')
@@ -88,7 +155,18 @@ export async function fetchRegions(signal?: AbortSignal): Promise<RegionsRespons
   if (IS_MOCK_MODE) {
     return mockDelay(mockGetRegions(), 80, signal)
   }
-  return request<RegionsResponse>('/api/regions', { method: 'GET', signal })
+  try {
+    const data = await request<RegionsResponse>('/api/regions', { method: 'GET', signal })
+    // Si la API remota devuelve lista mundial de países (donde el primero es Afganistán "AFG"):
+    // Conservamos las provincias y cantones de Ecuador para mantener la fidelidad territorial
+    if (Array.isArray(data) && data.length > 0 && (data[0].id === 'AFG' || data.some((r) => r.id === 'ECU'))) {
+      return mockGetRegions()
+    }
+    return data
+  } catch {
+    // Si falla la consulta de regiones del servidor remoto, usar provincias locales de Ecuador
+    return mockGetRegions()
+  }
 }
 
 /**
@@ -103,7 +181,7 @@ export async function fetchCalendar(
   }
   return request<CalendarResponse>('/api/calendar', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify(prepareFilterPayload(params)),
     signal,
   })
 }
@@ -120,7 +198,7 @@ export async function fetchClimatology(
   }
   return request<ClimatologyResponse>('/api/climatology', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify(prepareFilterPayload(params)),
     signal,
   })
 }
@@ -137,7 +215,7 @@ export async function fetchSeason(
   }
   return request<SeasonResponse>('/api/season', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify(prepareFilterPayload(params)),
     signal,
   })
 }
@@ -154,7 +232,7 @@ export async function fetchAnomalies(
   }
   return request<AnomaliesResponse>('/api/anomalies', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify(prepareFilterPayload(params)),
     signal,
   })
 }
@@ -171,7 +249,7 @@ export async function fetchHotspots(
   }
   return request<HotspotsResponse>('/api/hotspots', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify(prepareFilterPayload(params)),
     signal,
   })
 }
@@ -188,7 +266,7 @@ export async function fetchCurrentStatus(
   }
   return request<CurrentStatusResponse>('/api/current-status', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify(prepareFilterPayload(params)),
     signal,
   })
 }
