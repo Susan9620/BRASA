@@ -10,6 +10,28 @@ export const COUNTRIES: CountryItem[] = [...(PAISES_177 as CountryItem[])].sort(
   a.name.localeCompare(b.name, 'es')
 )
 
+// Catálogo de Continentes
+export const CONTINENTS: string[] = [
+  'América del Sur',
+  'América Central',
+  'América del Norte',
+  'Europa',
+  'Asia',
+  'África',
+  'Oceanía',
+  'Antártida',
+]
+
+/**
+ * Filtra los países por continente. Si no se especifica, entrega todos los 177 países.
+ */
+export function getCountriesForContinent(continent?: string): CountryItem[] {
+  if (!continent || continent === '' || continent === 'all') {
+    return COUNTRIES
+  }
+  return COUNTRIES.filter((c) => c.continent === continent)
+}
+
 /**
  * Obtiene todas las ciudades o cantones disponibles en un país.
  * Para Ecuador (ECU): entrega los 221 cantones oficiales del país.

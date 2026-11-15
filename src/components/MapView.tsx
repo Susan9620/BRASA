@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   MapContainer,
@@ -6,6 +6,7 @@ import {
   GeoJSON,
   CircleMarker,
   Popup,
+  LayerGroup,
   useMap,
   Circle as LeafletCircle,
 } from 'react-leaflet'
@@ -136,6 +137,31 @@ export const MapView: React.FC<MapViewProps> = ({
   const hasCitySelected = Boolean(filters.cantonId && filters.cantonId !== '')
   const countrySilhouette = getCountrySilhouette(filters.country)
 
+  // Focos a desplegar: mostrar todos los focos satelitales detectados en el país para la fecha activa
+  const displayPoints = points
+
+  // Desplazamiento radial sutil para puntos coincidentes en la misma coordenada de celda (ej. -1.5, -78.5)
+  // para que cada evento del satélite sea visible y clickeable individualmente
+  const positionedPoints = useMemo(() => {
+    const coordsMap = new Map<string, number>()
+    return displayPoints.map((pt) => {
+      const coordKey = `${pt.lat.toFixed(2)},${pt.lon.toFixed(2)}`
+      const count = coordsMap.get(coordKey) || 0
+      coordsMap.set(coordKey, count + 1)
+
+      if (count === 0) {
+        return { ...pt, displayLat: pt.lat, displayLon: pt.lon }
+      }
+      const angle = (count * 2 * Math.PI) / 6
+      const offsetDeg = 0.035 * Math.ceil(count / 6)
+      return {
+        ...pt,
+        displayLat: pt.lat + Math.sin(angle) * offsetDeg,
+        displayLon: pt.lon + Math.cos(angle) * offsetDeg,
+      }
+    })
+  }, [displayPoints])
+
   // Centro activo en tiempo real: ciudad seleccionada > país > Riobamba
   const activeCenter: [number, number] =
     hasCitySelected && canton
@@ -168,7 +194,20 @@ export const MapView: React.FC<MapViewProps> = ({
             Mapa · {canton ? `${canton.name} · ` : ''}{currentCountry?.name || filters.countryName || 'Ecuador'}
           </p>
           <h2 className="mt-2 text-xl sm:text-2xl font-black tracking-tight text-[#0B1B3D]">Focos detectados</h2>
-          <p className="mt-1 text-sm text-slate-500">Tamaño según potencia radiativa (FRP).</p>
+          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
+            <span className="font-bold text-[#FF7900] bg-orange-50 px-2.5 py-0.5 rounded-lg border border-orange-200">
+              Semana {selectedWeek} · {selectedYear}
+            </span>
+            <span className="font-semibold text-slate-600">
+              {displayPoints.length} {displayPoints.length === 1 ? 'foco detectado' : 'focos detectados'}
+            </span>
+            {isLoadingHotspots && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-bold border border-amber-200 text-[11px] animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                Actualizando satélites...
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Capas y conteo de focos */}
@@ -211,7 +250,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
           <div className="flex items-center gap-1.5 px-3 py-1 bg-[#FFF2E6] text-[#FF7900] rounded-xl border border-[#FF7900]/30 text-xs font-bold">
             <Flame className="w-3.5 h-3.5 fill-current" />
-            <span>{points.length} focos</span>
+            <span>{displayPoints.length} focos</span>
           </div>
         </div>
       </div>
@@ -267,62 +306,72 @@ export const MapView: React.FC<MapViewProps> = ({
           )}
 
           {/* Focos de calor como bolitas en el tamaño y color exacto de la imagen */}
-          {points.map((pt, idx) => {
-            const { fill, stroke } = getFrpColor(pt.frp)
-            const radius = getFrpRadius(pt.frp)
+          <LayerGroup key={`hotspots-layer-${filters.country}-${selectedYear}-${selectedWeek}`}>
+            {positionedPoints.map((pt, idx) => {
+              const { fill, stroke } = getFrpColor(pt.frp)
+              const radius = getFrpRadius(pt.frp)
 
-            return (
-              <CircleMarker
-                key={`${pt.lat}-${pt.lon}-${idx}`}
-                center={[pt.lat, pt.lon]}
-                radius={radius}
-                pathOptions={{
-                  color: stroke,
-                  fillColor: fill,
-                  fillOpacity: 0.78,
-                  weight: 1.1,
-                }}
-              >
-                <Popup className="custom-popup">
-                  <div className="p-1 space-y-1.5 text-xs font-sans">
-                    <div className="font-black text-[#0B2D5B] border-b pb-1 flex items-center justify-between gap-3">
-                      <span className="flex items-center gap-1 text-[#FF7900]">
-                        <Flame className="w-3.5 h-3.5 fill-current" />
-                        <span>Foco Térmico</span>
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded-sm bg-[#F4F6F9] text-[10px] uppercase font-mono font-bold text-[#0B2D5B]">
-                        {pt.sensor}
-                      </span>
+              return (
+                <CircleMarker
+                  key={`hotspot-${filters.country}-${selectedYear}-${selectedWeek}-${idx}-${pt.date}-${pt.frp}`}
+                  center={[pt.displayLat, pt.displayLon]}
+                  radius={radius}
+                  pathOptions={{
+                    color: stroke,
+                    fillColor: fill,
+                    fillOpacity: 0.78,
+                    weight: 1.1,
+                  }}
+                >
+                  <Popup className="custom-popup" autoPan={false}>
+                    <div className="p-1 space-y-1.5 text-xs font-sans">
+                      <div className="font-black text-[#0B2D5B] border-b pb-1 flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-1 text-[#FF7900]">
+                          <Flame className="w-3.5 h-3.5 fill-current" />
+                          <span>Foco Térmico</span>
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded-sm bg-[#F4F6F9] text-[10px] uppercase font-mono font-bold text-[#0B2D5B]">
+                          {pt.sensor}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-[11px]">
+                        <span className="text-slate-500 font-medium">Fecha:</span>
+                        <span className="font-bold text-slate-800">{pt.date}</span>
+
+                        <span className="text-slate-500 font-medium">Potencia (FRP):</span>
+                        <span className="font-black text-[#E53935]">
+                          {typeof pt.frp === 'number' ? Math.round(pt.frp * 10) / 10 : pt.frp} MW
+                        </span>
+
+                        <span className="text-slate-500 font-medium">Ubicación:</span>
+                        <span className="font-mono text-slate-700 text-[10px]">
+                          {formatCoordinates(pt.lat, pt.lon)}
+                        </span>
+                      </div>
+
+                      <Link
+                        to={`/simulador?lat=${pt.lat}&lon=${pt.lon}&frp=${typeof pt.frp === 'number' ? Math.round(pt.frp * 10) / 10 : pt.frp}&sensor=${pt.sensor}&date=${pt.date}`}
+                        style={{ color: '#ffffff' }}
+                        className="mt-2.5 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-[#FF7900] to-[#E66D00] text-white !text-white text-xs font-bold shadow-xs hover:shadow-md transition-all text-center no-underline"
+                      >
+                        <Flame className="w-3.5 h-3.5 fill-current text-white shrink-0" />
+                        <span style={{ color: '#ffffff' }} className="text-white !text-white font-bold">Simular en FireCast Táctico</span>
+                      </Link>
                     </div>
-                    <div className="grid grid-cols-2 gap-1 text-[11px]">
-                      <span className="text-slate-500 font-medium">Fecha:</span>
-                      <span className="font-bold text-slate-800">{pt.date}</span>
-
-                      <span className="text-slate-500 font-medium">Potencia (FRP):</span>
-                      <span className="font-black text-[#E53935]">
-                        {typeof pt.frp === 'number' ? Math.round(pt.frp * 10) / 10 : pt.frp} MW
-                      </span>
-
-                      <span className="text-slate-500 font-medium">Ubicación:</span>
-                      <span className="font-mono text-slate-700 text-[10px]">
-                        {formatCoordinates(pt.lat, pt.lon)}
-                      </span>
-                    </div>
-
-                    <Link
-                      to={`/simulador?lat=${pt.lat}&lon=${pt.lon}&frp=${typeof pt.frp === 'number' ? Math.round(pt.frp * 10) / 10 : pt.frp}&sensor=${pt.sensor}&date=${pt.date}`}
-                      style={{ color: '#ffffff' }}
-                      className="mt-2.5 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-[#FF7900] to-[#E66D00] text-white !text-white text-xs font-bold shadow-xs hover:shadow-md transition-all text-center no-underline"
-                    >
-                      <Flame className="w-3.5 h-3.5 fill-current text-white shrink-0" />
-                      <span className="text-white !text-white font-bold">Simular en FireCast Táctico</span>
-                    </Link>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            )
-          })}
+                  </Popup>
+                </CircleMarker>
+              )
+            })}
+          </LayerGroup>
         </MapContainer>
+
+        {/* Indicador flotante cuando se están descargando datos de satélite */}
+        {isLoadingHotspots && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-white/95 backdrop-blur-xs px-4 py-1.5 rounded-full border border-orange-200 shadow-md flex items-center gap-2 text-xs font-bold text-[#0B2D5B]">
+            <span className="w-2 h-2 rounded-full bg-[#FF7900] animate-ping" />
+            <span>Consultando satélites (Semana {selectedWeek}, {selectedYear})...</span>
+          </div>
+        )}
 
         {/* Leyenda idéntica a la imagen: "Potencia térmica (FRP en MW) [15 MW] [30 MW] [60 MW] [100 MW]" */}
         <div className="absolute bottom-3 right-3 z-20 bg-white/95 backdrop-blur-xs px-3.5 py-2 rounded-xl border border-slate-200/90 shadow-md text-xs">

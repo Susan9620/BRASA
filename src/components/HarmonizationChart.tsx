@@ -38,20 +38,28 @@ export const HarmonizationChart: React.FC = () => {
     }
     const sensors: SensorType[] = ['harmonized', 'modis', 'viirs']
 
-    setIsLoading(true)
+    if (!data.harmonized) {
+      setIsLoading(true)
+    }
     setError(false)
-    Promise.all(sensors.map((sensor) => fetchCalendar({ ...base, sensor }, ac.signal)))
-      .then(([harmonized, modis, viirs]) => {
-        setData({ harmonized, modis, viirs })
-        setIsLoading(false)
-      })
-      .catch((err) => {
-        if (err?.name === 'AbortError') return
-        setError(true)
-        setIsLoading(false)
-      })
 
-    return () => ac.abort()
+    const timer = setTimeout(() => {
+      Promise.all(sensors.map((sensor) => fetchCalendar({ ...base, sensor }, ac.signal)))
+        .then(([harmonized, modis, viirs]) => {
+          setData({ harmonized, modis, viirs })
+          setIsLoading(false)
+        })
+        .catch((err) => {
+          if (err?.name === 'AbortError') return
+          setError(true)
+          setIsLoading(false)
+        })
+    }, 300)
+
+    return () => {
+      clearTimeout(timer)
+      ac.abort()
+    }
   }, [
     filters.country,
     filters.yearRange,

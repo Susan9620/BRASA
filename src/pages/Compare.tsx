@@ -88,7 +88,7 @@ export const Compare: React.FC = () => {
   const seasonYears = useMemo(() => [...(season?.years ?? [])].sort((a, b) => a.year - b.year), [season])
   const availableYears = useMemo(() => {
     const fromSeason = seasonYears.map((y) => y.year)
-    const fullRange = Array.from({ length: 25 }, (_, i) => 2001 + i)
+    const fullRange = Array.from({ length: 21 }, (_, i) => 2005 + i)
     return Array.from(new Set([...fromSeason, ...fullRange])).sort((a, b) => b - a)
   }, [seasonYears])
 
@@ -179,7 +179,7 @@ export const Compare: React.FC = () => {
   /* 2. Actividad mensual frente al promedio histórico */
   const monthlyOption = {
     tooltip: { ...TOOLTIP, valueFormatter: (v: number | null) => (v === null ? '—' : `${v.toLocaleString('es-EC')} fcd`) },
-    legend: { ...LEGEND, data: [String(yearA), String(yearB), 'Promedio 2001–2025'] },
+    legend: { ...LEGEND, data: [String(yearA), String(yearB), 'Promedio 2005–2025'] },
     grid: { top: 16, left: 52, right: 16, bottom: 44 },
     xAxis: { ...AXIS_X, boundaryGap: true, data: MONTHS_SHORT, axisLabel: { ...AXIS_X.axisLabel, interval: 0 } },
     yAxis: AXIS_Y,
@@ -187,7 +187,7 @@ export const Compare: React.FC = () => {
       { name: String(yearA), type: 'bar', data: monthly.a, barGap: '10%', barMaxWidth: 18, itemStyle: { color: COLOR_A, borderRadius: [4, 4, 0, 0] } },
       { name: String(yearB), type: 'bar', data: monthly.b, barMaxWidth: 18, itemStyle: { color: COLOR_B, borderRadius: [4, 4, 0, 0] } },
       {
-        name: 'Promedio 2001–2025',
+        name: 'Promedio 2005–2025',
         type: 'line',
         data: monthly.mean,
         symbol: 'circle',
@@ -318,7 +318,7 @@ export const Compare: React.FC = () => {
         <>
           <Card
             eyebrow="Contexto"
-            title="Total anual 2001–2025"
+            title="Total anual 2005–2025"
             subtitle="Clic en una barra para usarla como año A."
           >
             <div className="w-full h-[220px]">

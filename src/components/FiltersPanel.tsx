@@ -7,7 +7,8 @@ import {
 } from 'lucide-react'
 import { useFilters } from '../hooks/useFilters'
 import type { RegionsResponse, SensorType, ConfidenceLevel, DayNight } from '../types'
-import { COUNTRIES, getCitiesForCountry } from '../utils/territoryData'
+import { COUNTRIES, CONTINENTS, getCountriesForContinent, getCitiesForCountry } from '../utils/territoryData'
+import { MONTHS_LONG, MONTHS_SHORT, weekToMonth, firstWeekOfMonth } from '../utils/monthly'
 
 interface FiltersPanelProps {
   regions: RegionsResponse | null
@@ -24,6 +25,9 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
 }) => {
   const {
     filters,
+    selectedWeek,
+    setSelectedWeek,
+    setContinent,
     setCountry,
     setCantonId,
     setYearRange,
@@ -37,6 +41,8 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false)
 
+  const currentMonth = weekToMonth(filters.selectedYear, selectedWeek)
+  const filteredCountries = getCountriesForContinent(filters.continent)
   const availableCities = getCitiesForCountry(filters.country)
   const selectedCity = availableCities.find((c) => c.id === filters.cantonId)
 
@@ -59,21 +65,46 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
         </button>
       </div>
 
-      {/* 2. Ubicación territorial: País y Ciudad únicamente */}
+      {/* 2. Ubicación territorial: Continente, País y Ciudad */}
       <div className="space-y-3">
         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
           UBICACIÓN TERRITORIAL
         </label>
+
+        {/* Filtro de Continente */}
+        <div>
+          <label htmlFor="continent-select" className="text-xs text-slate-400 font-medium block mb-1">
+            Continente
+          </label>
+          <div className="relative">
+            <select
+              id="continent-select"
+              value={filters.continent || ''}
+              onChange={(e) => setContinent(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-[#0B2D5B] focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs cursor-pointer"
+            >
+              <option value="">(Todos los continentes)</option>
+              {CONTINENTS.map((cont) => (
+                <option key={cont} value={cont}>
+                  {cont}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Filtro de País */}
         <div>
           <label htmlFor="country-select" className="text-xs text-slate-400 font-medium block mb-1">
-            País ({COUNTRIES.length} países)
+            País ({filteredCountries.length} disponibles)
           </label>
           <div className="relative">
             <select
               id="country-select"
               value={filters.country}
               onChange={(e) => {
-                const c = COUNTRIES.find((item) => item.code === e.target.value)
+                const c = filteredCountries.find((item) => item.code === e.target.value) || COUNTRIES.find((item) => item.code === e.target.value)
                 setCountry(
                   e.target.value,
                   c?.name.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim(),
@@ -82,7 +113,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
               }}
               className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-[#0B2D5B] focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs cursor-pointer"
             >
-              {COUNTRIES.map((c) => (
+              {filteredCountries.map((c) => (
                 <option key={c.code} value={c.code}>
                   {c.name} ({c.code})
                 </option>
@@ -135,13 +166,15 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
             <div className="relative">
               <select
                 value={filters.yearRange[0]}
-                onChange={(e) =>
-                  setYearRange([Number(e.target.value), filters.yearRange[1]])
-                }
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 pr-7 text-xs font-bold text-slate-700 shadow-2xs appearance-none"
+                onChange={(e) => {
+                  const newFrom = Number(e.target.value)
+                  const newTo = Math.max(newFrom, filters.yearRange[1])
+                  setYearRange([newFrom, newTo])
+                }}
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 pr-7 text-xs font-bold text-slate-700 shadow-2xs appearance-none cursor-pointer"
               >
-                {Array.from({ length: 25 }, (_, i) => 2001 + i).map((y) => (
-                  <option key={y} value={y} disabled={y > filters.yearRange[1]}>
+                {Array.from({ length: 21 }, (_, i) => 2005 + i).map((y) => (
+                  <option key={y} value={y}>
                     {y}
                   </option>
                 ))}
@@ -154,13 +187,15 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
             <div className="relative">
               <select
                 value={filters.yearRange[1]}
-                onChange={(e) =>
-                  setYearRange([filters.yearRange[0], Number(e.target.value)])
-                }
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 pr-7 text-xs font-bold text-slate-700 shadow-2xs appearance-none"
+                onChange={(e) => {
+                  const newTo = Number(e.target.value)
+                  const newFrom = Math.min(newTo, filters.yearRange[0])
+                  setYearRange([newFrom, newTo])
+                }}
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 pr-7 text-xs font-bold text-slate-700 shadow-2xs appearance-none cursor-pointer"
               >
-                {Array.from({ length: 25 }, (_, i) => 2001 + i).map((y) => (
-                  <option key={y} value={y} disabled={y < filters.yearRange[0]}>
+                {Array.from({ length: 21 }, (_, i) => 2005 + i).map((y) => (
+                  <option key={y} value={y}>
                     {y}
                   </option>
                 ))}
@@ -178,19 +213,72 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
             <select
               id="selected-year-select"
               value={filters.selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-black text-slate-800 shadow-2xs appearance-none"
+              onChange={(e) => {
+                const y = Number(e.target.value)
+                setSelectedYear(y)
+                // Asegurar que el rango histórico cubra el año seleccionado
+                if (y < filters.yearRange[0]) {
+                  setYearRange([y, filters.yearRange[1]])
+                } else if (y > filters.yearRange[1]) {
+                  setYearRange([filters.yearRange[0], y])
+                }
+              }}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-black text-slate-800 shadow-2xs appearance-none cursor-pointer"
             >
-              {Array.from(
-                { length: filters.yearRange[1] - filters.yearRange[0] + 1 },
-                (_, i) => filters.yearRange[0] + i
-              ).map((y) => (
+              {Array.from({ length: 21 }, (_, i) => 2005 + i).map((y) => (
                 <option key={y} value={y}>
                   {y}{y === 2024 || y === 2012 ? ' · temporada crítica' : ''}
                 </option>
               ))}
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Filtro de Mes */}
+        <div>
+          <label htmlFor="selected-month-select" className="text-xs text-slate-400 font-medium block mb-1">
+            Mes en foco
+          </label>
+          <div className="relative">
+            <select
+              id="selected-month-select"
+              value={currentMonth}
+              onChange={(e) => {
+                const m = Number(e.target.value)
+                setSelectedWeek(firstWeekOfMonth(filters.selectedYear, m))
+              }}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-black text-slate-800 shadow-2xs appearance-none cursor-pointer"
+            >
+              {MONTHS_LONG.map((name, idx) => (
+                <option key={name} value={idx}>
+                  {name} {idx === 8 || idx === 7 ? '· temporada seca' : ''}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+
+          {/* Cuadrícula interactiva de 12 meses idéntica al diseño anterior */}
+          <div className="grid grid-cols-6 gap-1 mt-2">
+            {MONTHS_SHORT.map((mShort, idx) => {
+              const isSelected = currentMonth === idx
+              return (
+                <button
+                  key={mShort}
+                  type="button"
+                  onClick={() => setSelectedWeek(firstWeekOfMonth(filters.selectedYear, idx))}
+                  className={`py-1.5 text-[11px] rounded-lg font-bold transition-all text-center ${
+                    isSelected
+                      ? 'bg-[#0B2D5B] text-white shadow-2xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-orange-50 hover:text-[#FF7900] border border-slate-200/60'
+                  }`}
+                  title={`${MONTHS_LONG[idx]} ${filters.selectedYear}`}
+                >
+                  {mShort}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -279,7 +367,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
   return (
     <>
       <div
-        className={`bg-white rounded-[28px] p-6 border border-slate-200/70 hidden lg:block ${className}`}
+        className={`bg-white rounded-[28px] p-6 border border-slate-200/70 hidden lg:block sticky top-24 self-start max-h-[calc(100vh-110px)] overflow-y-auto ${className}`}
       >
         {content}
       </div>

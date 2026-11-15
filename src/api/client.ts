@@ -60,13 +60,11 @@ function mockDelay<T>(data: T, delayMs: number = 120, signal?: AbortSignal): Pro
  * Adapta los parámetros según el backend conectado (API local de Ecuador vs API mundial en Render)
  */
 function prepareFilterPayload(params: any): any {
-  const isMundialApi = API_BASE_URL.includes('mundial') || API_BASE_URL.includes('onrender.com')
-
   const payload: any = {
-    year_from: params.year_from ?? 2001,
+    year_from: params.year_from ?? 2005,
     year_to: params.year_to ?? 2025,
     sensor: params.sensor ?? 'harmonized',
-    confidence: params.confidence ?? 'nominal_high',
+    confidence: params.confidence ?? 'all',
     daynight: params.daynight ?? 'all',
   }
 
@@ -75,16 +73,11 @@ function prepareFilterPayload(params: any): any {
   if (params.date_from !== undefined) payload.date_from = params.date_from
   if (params.date_to !== undefined) payload.date_to = params.date_to
 
-  if (isMundialApi) {
-    // La API mundial en Render usa código ISO3 para países (Ecuador = ECU por defecto)
-    payload.country_code = params.country_code || 'ECU'
-  } else {
-    // El backend local de Ecuador usa identificadores de provincia y cantón
-    if (params.province_id) payload.province_id = params.province_id
-    if (params.canton_id) payload.canton_id = params.canton_id
-    if (params.geojson) payload.geojson = params.geojson
-  }
+  // Código ISO3 para países (Ecuador = ECU por defecto)
+  payload.country_code = (params.country_code || 'ECU').toUpperCase()
 
+  // La API mundial en Render no acepta canton_id, province_id ni geojson (responde 422)
+  // El filtrado por ciudad/cantón se realiza de forma geoespacial precisa en el cliente
   return payload
 }
 
@@ -102,13 +95,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     },
   })
 
-  // Si la API remota responde 422 indicando que requiere country_code (API mundial de Render)
+  // Si la API remota responde 422 (validación de esquema)
   if (response.status === 422 && options.body) {
     try {
       const parsed = JSON.parse(options.body as string)
       const adapted = {
         ...parsed,
-        country_code: 'ECU',
+        country_code: parsed.country_code || 'ECU',
       }
       delete adapted.province_id
       delete adapted.canton_id
@@ -246,9 +239,22 @@ export async function fetchHotspots(
   if (IS_MOCK_MODE) {
     return mockDelay(mockGetHotspots(params), 0, signal)
   }
+  // Para /api/hotspots enviamos estrictamente los parámetros que la base de datos consulta:
+  // country_code, year, week, sensor, confidence, daynight (sin year_from ni year_to para evitar errores 422 de rango)
+  const hotspotsPayload: Record<string, any> = {
+    country_code: (params.country_code || 'ECU').toUpperCase(),
+    year: params.year ?? 2024,
+    week: params.week ?? 36,
+    sensor: params.sensor ?? 'harmonized',
+    confidence: params.confidence ?? 'all',
+    daynight: params.daynight ?? 'all',
+  }
+  if (params.date_from !== undefined) hotspotsPayload.date_from = params.date_from
+  if (params.date_to !== undefined) hotspotsPayload.date_to = params.date_to
+
   return request<HotspotsResponse>('/api/hotspots', {
     method: 'POST',
-    body: JSON.stringify(prepareFilterPayload(params)),
+    body: JSON.stringify(hotspotsPayload),
     signal,
   })
 }

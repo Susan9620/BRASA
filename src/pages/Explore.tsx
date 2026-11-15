@@ -11,7 +11,6 @@ import { TimelinePlayer } from '../components/TimelinePlayer'
 import { ExportControls } from '../components/ExportControls'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { HarmonizationChart } from '../components/HarmonizationChart'
-import { MonthlyCalendar } from '../components/MonthlyCalendar'
 import { getCitiesForCountry, getProvincesForCountry } from '../utils/territoryData'
 
 const SectionLabel: React.FC<{ title: string; note: string }> = ({ title, note }) => (
@@ -134,17 +133,8 @@ export const Explore: React.FC = () => {
             peakWeek={peakWeek}
           />
 
-          <MonthlyCalendar
-            calendar={calendar}
-            anomalies={anomalies}
-            selectedYear={filters.selectedYear}
-            selectedWeek={selectedWeek}
-            isLoading={isLoading}
-            onSelectWeek={handleSelectWeekAndYear}
-          />
-
           <div className="pt-6">
-            <SectionLabel title="Serie histórica" note="2001–2025" />
+            <SectionLabel title="Serie histórica" note="2005–2025" />
           </div>
 
           <FireCalendar
