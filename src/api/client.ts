@@ -7,6 +7,10 @@ import type {
   CalendarResponse,
   ClimatologyResponse,
   CurrentStatusResponse,
+  EvacuationRequestParams,
+  EvacuationResponse,
+  FireCastRequestParams,
+  FireCastResponse,
   HotspotRequestParams,
   HotspotsResponse,
   RegionsResponse,
@@ -17,16 +21,17 @@ import {
   mockGetCalendar,
   mockGetClimatology,
   mockGetCurrentStatus,
+  mockGetEvacuationRoute,
+  mockGetFireCast,
   mockGetHotspots,
   mockGetRegions,
   mockGetSeason,
 } from './mock'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-export const IS_MOCK_MODE =
-  import.meta.env.VITE_USE_MOCK === undefined
-    ? true
-    : String(import.meta.env.VITE_USE_MOCK).toLowerCase() === 'true'
+// Por defecto SIEMPRE se usa la API real; el modo mock es opt-in explícito para desarrollo
+// local sin backend (VITE_USE_MOCK=true), nunca el comportamiento implícito en producción.
+export const IS_MOCK_MODE = String(import.meta.env.VITE_USE_MOCK).toLowerCase() === 'true'
 
 // Utilidad para simular latencia de red mínima en modo mock (120ms)
 function mockDelay<T>(data: T, delayMs: number = 120, signal?: AbortSignal): Promise<T> {
@@ -170,6 +175,45 @@ export async function fetchHotspots(
     return mockDelay(mockGetHotspots(params), 0, signal)
   }
   return request<HotspotsResponse>('/api/hotspots', {
+    method: 'POST',
+    body: JSON.stringify(params),
+    signal,
+  })
+}
+
+/**
+ * POST /api/firecast
+ * Simulación de propagación de incendio (6h/12h/24h) desde un punto de ignición.
+ * No depende de brasa.db: usa viento/elevación en vivo. En modo mock, devuelve
+ * un polígono de demostración (no corre el autómata celular real).
+ */
+export async function fetchFireCast(
+  params: FireCastRequestParams,
+  signal?: AbortSignal
+): Promise<FireCastResponse> {
+  if (IS_MOCK_MODE) {
+    return mockDelay(mockGetFireCast(params), 900, signal)
+  }
+  return request<FireCastResponse>('/api/firecast', {
+    method: 'POST',
+    body: JSON.stringify(params),
+    signal,
+  })
+}
+
+/**
+ * POST /api/evacuation-route
+ * Ruta segura de evacuación (prototipo) desde la posición de un brigadista,
+ * evitando la zona de propagación y el cono de humo del punto de ignición dado.
+ */
+export async function fetchEvacuationRoute(
+  params: EvacuationRequestParams,
+  signal?: AbortSignal
+): Promise<EvacuationResponse> {
+  if (IS_MOCK_MODE) {
+    return mockDelay(mockGetEvacuationRoute(params), 700, signal)
+  }
+  return request<EvacuationResponse>('/api/evacuation-route', {
     method: 'POST',
     body: JSON.stringify(params),
     signal,

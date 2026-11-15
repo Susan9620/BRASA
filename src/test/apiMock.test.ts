@@ -17,16 +17,15 @@ describe('API Mock determinista de BRASA', () => {
     sensor: 'harmonized',
     confidence: 'nominal_high',
     daynight: 'all',
-    province_id: 'chimborazo',
-    canton_id: 'riobamba',
+    country_code: 'ECU',
   }
 
-  it('retorna las regiones de Ecuador incluyendo Chimborazo y Riobamba', () => {
+  it('retorna países con código ISO3, incluyendo Ecuador', () => {
     const regions = mockGetRegions()
     expect(regions.length).toBeGreaterThan(0)
-    const chimborazo = regions.find((r) => r.id === 'chimborazo')
-    expect(chimborazo).toBeDefined()
-    expect(chimborazo?.cantons?.some((c) => c.id === 'riobamba')).toBe(true)
+    const ecuador = regions.find((r) => r.id === 'ECU')
+    expect(ecuador).toBeDefined()
+    expect(ecuador?.geojson).toBeDefined()
   })
 
   it('genera calendario histórico en unidad fire_cell_days con pico semanas 32-40', () => {

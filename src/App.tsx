@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { FiltersProvider } from './hooks/useFilters'
 import { Navbar } from './components/Navbar'
 import { Sidebar } from './components/Sidebar'
-import { MockBanner } from './components/MockBanner'
 import { Home } from './pages/Home'
 import { Explore } from './pages/Explore'
 import { Compare } from './pages/Compare'
@@ -22,9 +21,6 @@ const AppLayout: React.FC = () => {
         isHomePage ? 'bg-white' : 'bg-[#F4F6F9]'
       } text-slate-800 flex flex-col font-sans`}
     >
-      {/* Banner de datos simulados - solo en páginas de análisis interior */}
-      {!isHomePage && <MockBanner />}
-
       {/* Barra superior de encabezado */}
       <Navbar />
 

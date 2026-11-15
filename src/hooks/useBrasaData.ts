@@ -1,9 +1,10 @@
 // Hook central de datos para BRASA
-// Gestiona peticiones a la API, cancelación de solicitudes obsoletas, caché y reintentos
+// Gestiona peticiones a la API, cancelación de solicitudes obsoletas, caché y estados de carga
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type {
   AnomaliesResponse,
+  BaseFilterParams,
   CalendarResponse,
   ClimatologyResponse,
   CurrentStatusResponse,
@@ -19,9 +20,7 @@ import {
   fetchHotspots,
   fetchRegions,
   fetchSeason,
-  IS_MOCK_MODE,
 } from '../api/client'
-import { mockGetHotspots } from '../api/mock'
 import { useFilters } from './useFilters'
 
 export interface BrasaDataState {
@@ -34,6 +33,8 @@ export interface BrasaDataState {
   currentStatus: CurrentStatusResponse | null
   isLoading: boolean
   isHotspotsLoading: boolean
+  /** true cuando la API no publica la capa de puntos (HTTP 501) */
+  hotspotsUnavailable: boolean
   error: string | null
   refetch: () => void
 }
@@ -51,13 +52,14 @@ export function useBrasaData(): BrasaDataState {
 
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isHotspotsLoading, setIsHotspotsLoading] = useState<boolean>(false)
+  const [hotspotsUnavailable, setHotspotsUnavailable] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 
   const abortControllerRef = useRef<AbortController | null>(null)
   const hotspotsAbortRef = useRef<AbortController | null>(null)
   const hotspotsCacheRef = useRef<Map<string, HotspotsResponse>>(new Map())
 
-  // Cargar regiones solo una vez
+  // Cargar regiones (países) solo una vez
   useEffect(() => {
     let active = true
     fetchRegions()
@@ -72,26 +74,22 @@ export function useBrasaData(): BrasaDataState {
     }
   }, [])
 
-  // Cargar dataset principal al cambiar filtros o disparar análisis
+  // Cargar series al cambiar filtros o disparar análisis
   const loadData = useCallback(() => {
-    // Cancelar consulta previa en vuelo
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
+    abortControllerRef.current?.abort()
     const ac = new AbortController()
     abortControllerRef.current = ac
 
     setIsLoading(true)
     setError(null)
 
-    const baseParams = {
+    const baseParams: BaseFilterParams = {
       year_from: filters.yearRange[0],
       year_to: filters.yearRange[1],
       sensor: filters.sensor,
       confidence: filters.confidence,
       daynight: filters.daynight,
-      province_id: filters.provinceId,
-      canton_id: filters.cantonId,
+      country_code: filters.countryCode,
       geojson: filters.customGeometry?.geojson,
     }
 
@@ -116,9 +114,10 @@ export function useBrasaData(): BrasaDataState {
         setError('Ocurrió un error al consultar los datos satelitales. Verifique la conexión con el servicio.')
         setIsLoading(false)
       })
+    // analyzeTrigger fuerza una nueva consulta aunque los filtros no cambien
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    filters.provinceId,
-    filters.cantonId,
+    filters.countryCode,
     filters.yearRange,
     filters.sensor,
     filters.confidence,
@@ -129,64 +128,34 @@ export function useBrasaData(): BrasaDataState {
 
   useEffect(() => {
     loadData()
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
-    }
+    return () => abortControllerRef.current?.abort()
   }, [loadData])
 
-  // Pre-calentar caché de focos para todas las 52 semanas del año seleccionado
+  // Focos de la semana y año seleccionados (con caché por combinación de filtros)
   useEffect(() => {
-    if (IS_MOCK_MODE) {
-      const radius = filters.customGeometry?.radiusMeters || filters.coverageRadiusMeters || 18500
-      for (let w = 1; w <= 52; w++) {
-        const cacheKey = `${filters.selectedYear}-${w}-${filters.provinceId}-${filters.cantonId}-${filters.sensor}-${filters.confidence}-${filters.daynight}-${radius}`
-        if (!hotspotsCacheRef.current.has(cacheKey)) {
-          const res = mockGetHotspots({
-            year_from: filters.yearRange[0],
-            year_to: filters.yearRange[1],
-            sensor: filters.sensor,
-            confidence: filters.confidence,
-            daynight: filters.daynight,
-            province_id: filters.provinceId,
-            canton_id: filters.cantonId,
-            year: filters.selectedYear,
-            week: w,
-            geojson: filters.customGeometry?.geojson,
-          })
-          hotspotsCacheRef.current.set(cacheKey, res)
-        }
-      }
-    }
-  }, [
-    filters.selectedYear,
-    filters.provinceId,
-    filters.cantonId,
-    filters.sensor,
-    filters.confidence,
-    filters.daynight,
-    filters.coverageRadiusMeters,
-    filters.customGeometry?.radiusMeters,
-  ])
+    if (hotspotsUnavailable) return
 
-  // Cargar focos de calor específicos para la semana y año seleccionados de forma instantánea
-  useEffect(() => {
-    const radius = filters.customGeometry?.radiusMeters || filters.coverageRadiusMeters || 18500
-    const cacheKey = `${filters.selectedYear}-${selectedWeek}-${filters.provinceId}-${filters.cantonId}-${filters.sensor}-${filters.confidence}-${filters.daynight}-${radius}`
-    
-    // Si ya está en caché, actualizar de inmediato sin parpadeos
-    if (hotspotsCacheRef.current.has(cacheKey)) {
-      setHotspots(hotspotsCacheRef.current.get(cacheKey)!)
+    const cacheKey = [
+      filters.selectedYear,
+      selectedWeek,
+      filters.countryCode,
+      filters.sensor,
+      filters.confidence,
+      filters.daynight,
+      JSON.stringify(filters.customGeometry?.geojson ?? null),
+    ].join('|')
+
+    const cached = hotspotsCacheRef.current.get(cacheKey)
+    if (cached) {
+      setHotspots(cached)
       setIsHotspotsLoading(false)
       return
     }
 
-    if (hotspotsAbortRef.current) {
-      hotspotsAbortRef.current.abort()
-    }
+    hotspotsAbortRef.current?.abort()
     const ac = new AbortController()
     hotspotsAbortRef.current = ac
+    setIsHotspotsLoading(true)
 
     fetchHotspots(
       {
@@ -195,8 +164,7 @@ export function useBrasaData(): BrasaDataState {
         sensor: filters.sensor,
         confidence: filters.confidence,
         daynight: filters.daynight,
-        province_id: filters.provinceId,
-        canton_id: filters.cantonId,
+        country_code: filters.countryCode,
         year: filters.selectedYear,
         week: selectedWeek,
         geojson: filters.customGeometry?.geojson,
@@ -210,25 +178,27 @@ export function useBrasaData(): BrasaDataState {
       })
       .catch((err) => {
         if (err.name === 'AbortError') return
-        console.error('Error al cargar focos:', err)
+        // La versión compacta de la API no publica la capa espacial: dejar de pedirla
+        if (String(err?.message).includes('Error 501')) {
+          setHotspotsUnavailable(true)
+          setHotspots(null)
+        } else {
+          console.error('Error al cargar focos:', err)
+        }
         setIsHotspotsLoading(false)
       })
 
-    return () => {
-      if (hotspotsAbortRef.current) {
-        hotspotsAbortRef.current.abort()
-      }
-    }
+    return () => ac.abort()
   }, [
+    hotspotsUnavailable,
     filters.selectedYear,
     selectedWeek,
-    filters.provinceId,
-    filters.cantonId,
+    filters.countryCode,
+    filters.yearRange,
     filters.sensor,
     filters.confidence,
     filters.daynight,
-    filters.coverageRadiusMeters,
-    filters.customGeometry?.radiusMeters,
+    filters.customGeometry?.geojson,
   ])
 
   return {
@@ -241,6 +211,7 @@ export function useBrasaData(): BrasaDataState {
     currentStatus,
     isLoading,
     isHotspotsLoading,
+    hotspotsUnavailable,
     error,
     refetch: loadData,
   }

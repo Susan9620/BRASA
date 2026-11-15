@@ -80,7 +80,7 @@ export const AnomalyList: React.FC<AnomalyListProps> = ({
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Periodos inusuales</p>
           <h3 className="mt-2 text-2xl font-black tracking-tight text-[#0B1B3D]">Semanas con anomalía térmica</h3>
-          <p className="mt-1 text-sm text-slate-500">Ordenadas por desviación z-score (≥ 1.6σ).</p>
+          <p className="mt-1 text-sm text-slate-500">Ordenadas por desviación z-score.</p>
         </div>
 
         <div className="self-start sm:self-auto inline-flex p-1 rounded-full border border-slate-200">

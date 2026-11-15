@@ -32,8 +32,8 @@ export interface BaseFilterParams {
   daynight: DayNight
   geojson?: GeoJSON.GeoJsonObject
   bbox?: [number, number, number, number] // [minLon, minLat, maxLon, maxLat]
-  province_id?: string
-  canton_id?: string
+  /** País en ISO 3166-1 alfa-3 (p. ej. 'ECU'), según la API mundial */
+  country_code?: string
 }
 
 export interface CalendarWeekItem {
@@ -132,16 +132,64 @@ export interface Region {
 
 export type RegionsResponse = Region[]
 
+// FireCast — prototipo de simulación de propagación de incendios
+export interface FireCastRequestParams {
+  lat: number
+  lon: number
+}
+
+export interface FireCastWind {
+  speed_kmh: number
+  direction_from_deg: number
+}
+
+export interface FireCastPolygons {
+  h6: GeoJSON.GeoJsonObject | null
+  h12: GeoJSON.GeoJsonObject | null
+  h24: GeoJSON.GeoJsonObject | null
+}
+
+export interface FireCastResponse {
+  ignition: { lat: number; lon: number }
+  wind: FireCastWind
+  cell_size_m: number
+  grid_radius_m: number
+  polygons: FireCastPolygons
+  model: string
+  disclaimer: string
+}
+
+// Ruta segura de evacuación — consume el mismo punto de ignición que FireCast
+export type EvacuationRiskLevel = 'bajo' | 'moderado' | 'alto'
+
+export interface EvacuationRequestParams {
+  brigade_lat: number
+  brigade_lon: number
+  ignition_lat: number
+  ignition_lon: number
+}
+
+export interface EvacuationResponse {
+  brigade: { lat: number; lon: number; fuera_del_area_simulada: boolean }
+  exit_point: { lat: number; lon: number }
+  route: GeoJSON.LineString
+  distance_m: number
+  estimated_time_min: number
+  max_danger_on_path: number
+  max_smoke_on_path: number
+  risk_level: EvacuationRiskLevel
+  wind: FireCastWind
+  model: string
+  disclaimer: string
+}
+
 // Estado de filtros del cliente
 export interface FilterState {
-  country: string // 'Ecuador'
-  provinceId: string
-  cantonId: string
-  yearRange: [number, number] // [2001, 2025]
+  countryCode: string // ISO3, p. ej. 'ECU'
+  yearRange: [number, number] // [2005, 2025]
   selectedYear: number // p. ej. 2024
   sensor: SensorType
   confidence: ConfidenceLevel
   daynight: DayNight
   customGeometry?: CustomGeometry | null
-  coverageRadiusMeters?: number
 }

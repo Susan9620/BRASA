@@ -33,6 +33,42 @@ export function circleToPolygonGeoJSON(
 }
 
 /**
+ * Genera un polígono aproximadamente elíptico, alargado en la dirección hacia la que
+ * sopla el viento (windToDeg, en grados, 0 = Norte). Usado como respaldo en modo mock
+ * para FireCast (el backend real genera el polígono desde la simulación física).
+ */
+export function windStretchedPolygonGeoJSON(
+  centerLat: number,
+  centerLon: number,
+  baseRadiusMeters: number,
+  windToDeg: number,
+  stretchFactor: number,
+  points: number = 40
+): GeoJSON.Polygon {
+  const coords: [number, number][] = []
+  const earthRadius = 6378137
+  const latRad = (centerLat * Math.PI) / 180
+  const windToRad = (windToDeg * Math.PI) / 180
+
+  for (let i = 0; i <= points; i++) {
+    const angle = (i * 2 * Math.PI) / points
+    // Más radio en la dirección del viento, menos en la opuesta
+    const alignment = Math.cos(angle - windToRad)
+    const radius = baseRadiusMeters * (1 + stretchFactor * Math.max(0, alignment) - 0.3 * Math.max(0, -alignment))
+
+    const dLat = (radius / earthRadius) * Math.cos(angle)
+    const dLon = (radius / (earthRadius * Math.cos(latRad))) * Math.sin(angle)
+
+    const pointLat = ((latRad + dLat) * 180) / Math.PI
+    const pointLon = ((((centerLon * Math.PI) / 180) + dLon) * 180) / Math.PI
+
+    coords.push([pointLon, pointLat])
+  }
+
+  return { type: 'Polygon', coordinates: [coords] }
+}
+
+/**
  * Convierte una lista de coordenadas Leaflet [lat, lon] a un GeoJSON Polygon
  */
 export function latLngsToPolygonGeoJSON(latLngs: [number, number][]): GeoJSON.Polygon {

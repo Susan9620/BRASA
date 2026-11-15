@@ -1,5 +1,5 @@
 // Generador de datos simulados deterministas para BRASA
-// Basado en el régimen de incendios de Ecuador (2001-2025)
+// Datos de demostración por país (no son registros reales de NASA)
 // Temporada seca andina: semanas 32 a 40 (Agosto - Octubre)
 // Años críticos: 2012 y 2024
 
@@ -11,6 +11,11 @@ import type {
   ClimatologyResponse,
   ClimatologyWeekItem,
   CurrentStatusResponse,
+  EvacuationRequestParams,
+  EvacuationResponse,
+  EvacuationRiskLevel,
+  FireCastRequestParams,
+  FireCastResponse,
   HotspotPoint,
   HotspotRequestParams,
   HotspotsResponse,
@@ -20,6 +25,7 @@ import type {
   SourceType,
   StatusLevel,
 } from '../types'
+import { windStretchedPolygonGeoJSON } from '../utils/geoUtils'
 
 // Generador pseudoaleatorio determinista con semilla (Linear Congruential Generator)
 function pseudoRandom(seed: number): () => number {
@@ -31,189 +37,31 @@ function pseudoRandom(seed: number): () => number {
   }
 }
 
-// Provincias de Ecuador y cantones con GeoJSON simplificado
-export const MOCK_REGIONS: RegionsResponse = [
-  {
-    id: 'chimborazo',
-    name: 'Chimborazo',
-    center: [-1.6709, -78.6545],
-    zoom: 10,
-    cantons: [
-      { id: 'riobamba', name: 'Riobamba', lat: -1.6709, lon: -78.6545 },
-      { id: 'guano', name: 'Guano', lat: -1.6033, lon: -78.6322 },
-      { id: 'colta', name: 'Colta', lat: -1.7167, lon: -78.7500 },
-      { id: 'alausi', name: 'Alausí', lat: -2.2000, lon: -78.8500 },
-      { id: 'guamote', name: 'Guamote', lat: -1.9333, lon: -78.7167 },
-      { id: 'chambo', name: 'Chambo', lat: -1.7000, lon: -78.5833 },
-      { id: 'pallatanga', name: 'Pallatanga', lat: -2.0000, lon: -78.9667 },
-    ],
-    geojson: {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [-78.50, -1.35],
-          [-78.35, -1.60],
-          [-78.40, -1.95],
-          [-78.60, -2.35],
-          [-78.95, -2.40],
-          [-79.15, -2.10],
-          [-79.00, -1.70],
-          [-78.80, -1.40],
-          [-78.50, -1.35],
-        ],
-      ],
-    },
-  },
-  {
-    id: 'pichincha',
-    name: 'Pichincha',
-    center: [-0.2298, -78.5249],
-    zoom: 10,
-    cantons: [
-      { id: 'quito', name: 'Quito', lat: -0.2298, lon: -78.5249 },
-      { id: 'cayambe', name: 'Cayambe', lat: 0.0417, lon: -78.1453 },
-      { id: 'mejia', name: 'Mejía (Machachi)', lat: -0.5100, lon: -78.5667 },
-      { id: 'ruminahui', name: 'Rumiñahui (Sangolquí)', lat: -0.3333, lon: -78.4500 },
-    ],
-    geojson: {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [-78.70, 0.25],
-          [-78.20, 0.15],
-          [-78.10, -0.30],
-          [-78.35, -0.65],
-          [-78.75, -0.60],
-          [-79.05, -0.15],
-          [-78.70, 0.25],
-        ],
-      ],
-    },
-  },
-  {
-    id: 'guayas',
-    name: 'Guayas',
-    center: [-2.1894, -79.8891],
-    zoom: 9,
-    cantons: [
-      { id: 'guayaquil', name: 'Guayaquil', lat: -2.1894, lon: -79.8891 },
-      { id: 'samborondon', name: 'Samborondón', lat: -2.1400, lon: -79.7200 },
-      { id: 'daule', name: 'Daule', lat: -1.8600, lon: -79.9800 },
-      { id: 'milagro', name: 'Milagro', lat: -2.1333, lon: -79.5833 },
-    ],
-    geojson: {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [-79.90, -1.30],
-          [-79.40, -1.80],
-          [-79.45, -2.70],
-          [-80.10, -2.85],
-          [-80.45, -2.30],
-          [-80.20, -1.60],
-          [-79.90, -1.30],
-        ],
-      ],
-    },
-  },
-  {
-    id: 'azuay',
-    name: 'Azuay',
-    center: [-2.9001, -79.0059],
-    zoom: 10,
-    cantons: [
-      { id: 'cuenca', name: 'Cuenca', lat: -2.9001, lon: -79.0059 },
-      { id: 'gualaceo', name: 'Gualaceo', lat: -2.8900, lon: -78.7800 },
-      { id: 'paute', name: 'Paute', lat: -2.7800, lon: -78.7600 },
-    ],
-    geojson: {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [-79.10, -2.60],
-          [-78.60, -2.75],
-          [-78.70, -3.40],
-          [-79.35, -3.35],
-          [-79.50, -2.80],
-          [-79.10, -2.60],
-        ],
-      ],
-    },
-  },
-  {
-    id: 'loja',
-    name: 'Loja',
-    center: [-3.9931, -79.2042],
-    zoom: 9,
-    cantons: [
-      { id: 'loja', name: 'Loja', lat: -3.9931, lon: -79.2042 },
-      { id: 'catamayo', name: 'Catamayo', lat: -3.9800, lon: -79.3500 },
-      { id: 'calvas', name: 'Calvas (Cariamanga)', lat: -4.3200, lon: -79.5500 },
-    ],
-    geojson: {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [-79.25, -3.50],
-          [-78.90, -3.90],
-          [-79.10, -4.60],
-          [-79.70, -4.50],
-          [-80.00, -4.00],
-          [-79.50, -3.60],
-          [-79.25, -3.50],
-        ],
-      ],
-    },
-  },
-  {
-    id: 'imbabura',
-    name: 'Imbabura',
-    center: [0.3517, -78.1223],
-    zoom: 10,
-    cantons: [
-      { id: 'ibarra', name: 'Ibarra', lat: 0.3517, lon: -78.1223 },
-      { id: 'otavalo', name: 'Otavalo', lat: 0.2333, lon: -78.2667 },
-      { id: 'cotacachi', name: 'Cotacachi', lat: 0.3000, lon: -78.2667 },
-    ],
-    geojson: {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [-78.15, 0.70],
-          [-77.85, 0.40],
-          [-78.10, 0.15],
-          [-78.55, 0.20],
-          [-78.60, 0.60],
-          [-78.15, 0.70],
-        ],
-      ],
-    },
-  },
-  {
-    id: 'manabi',
-    name: 'Manabí',
-    center: [-1.0546, -80.4544],
-    zoom: 9,
-    cantons: [
-      { id: 'portoviejo', name: 'Portoviejo', lat: -1.0546, lon: -80.4544 },
-      { id: 'manta', name: 'Manta', lat: -0.9677, lon: -80.7089 },
-      { id: 'chone', name: 'Chone', lat: -0.6981, lon: -80.0936 },
-    ],
-    geojson: {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [-80.10, 0.20],
-          [-79.80, -0.60],
-          [-80.20, -1.80],
-          [-80.80, -1.60],
-          [-80.70, -0.30],
-          [-80.10, 0.20],
-        ],
-      ],
-    },
-  },
+// Países de demostración (contornos simplificados como rectángulos). NO son límites reales.
+// La API mundial usa códigos ISO 3166-1 alfa-3 y no tiene provincias ni cantones.
+const MOCK_COUNTRIES: { id: string; name: string; center: [number, number]; zoom: number; bbox: [number, number, number, number]; factor: number }[] = [
+  { id: 'ECU', name: 'Ecuador', center: [-1.79, -78.1], zoom: 6, bbox: [-81.0, -5.0, -75.2, 1.5], factor: 1.0 },
+  { id: 'COL', name: 'Colombia', center: [4.0, -73.0], zoom: 5, bbox: [-79.0, -4.2, -66.9, 12.5], factor: 1.3 },
+  { id: 'PER', name: 'Perú', center: [-9.2, -75.0], zoom: 5, bbox: [-81.3, -18.4, -68.7, -0.1], factor: 1.2 },
+  { id: 'BOL', name: 'Bolivia', center: [-16.5, -64.7], zoom: 5, bbox: [-69.6, -22.9, -57.5, -9.7], factor: 2.1 },
+  { id: 'BRA', name: 'Brasil', center: [-10.8, -52.9], zoom: 4, bbox: [-73.9, -33.7, -34.8, 5.3], factor: 4.5 },
+  { id: 'MEX', name: 'México', center: [23.6, -102.5], zoom: 4, bbox: [-117.1, 14.5, -86.7, 32.7], factor: 1.6 },
 ]
+
+export const MOCK_REGIONS: RegionsResponse = MOCK_COUNTRIES.map((c) => {
+  const [minLon, minLat, maxLon, maxLat] = c.bbox
+  return {
+    id: c.id,
+    name: c.name,
+    center: c.center,
+    zoom: c.zoom,
+    cantons: [],
+    geojson: {
+      type: 'Polygon',
+      coordinates: [[[minLon, minLat], [maxLon, minLat], [maxLon, maxLat], [minLon, maxLat], [minLon, minLat]]],
+    },
+  }
+})
 
 // Función auxiliar para calcular el valor base de fuego según semana y año
 function calculateBaseFireValue(year: number, week: number, provinceFactor: number = 1.0): number {
@@ -254,13 +102,17 @@ function resolveSource(year: number, sensorFilter: string): SourceType {
   return 'VIIRS_CAL'
 }
 
-// Escala por sensor (datos simulados): VIIRS 375 m detecta ~2.3x más celdas activas que MODIS 1 km;
-// MODIS muestra una ligera pérdida de sensibilidad desde 2017 (envejecimiento de Terra/Aqua).
-// La serie armonizada calibra ambos sensores a una escala común (factor 1).
+// Escala por sensor (datos simulados), imitando a la API mundial:
+// - MODIS: serie base, con leve pérdida de sensibilidad desde 2017.
+// - VIIRS: sin datos antes de 2012; detecta ~2.3x más celdas activas.
+// - 'harmonized': en la API es la SUMA de ambos sensores (no una armonización).
+const modisScale = (year: number) => (year >= 2017 ? 0.82 : 1)
+const viirsScale = (year: number) => (year >= 2012 ? 2.3 : 0)
+
 function sensorScale(year: number, sensor?: string): number {
-  if (sensor === 'viirs') return 2.3
-  if (sensor === 'modis') return year >= 2017 ? 0.82 : 1
-  return 1
+  if (sensor === 'modis') return modisScale(year)
+  if (sensor === 'viirs') return viirsScale(year)
+  return modisScale(year) + viirsScale(year)
 }
 
 // Obtener factor de escala según filtros de confianza y día/noche
@@ -272,26 +124,9 @@ function getFilterScales(confidence: string, daynight: string): number {
   return scale
 }
 
-// Factor multiplicador por provincia
-function getProvinceFactor(provinceId?: string): number {
-  switch (provinceId?.toLowerCase()) {
-    case 'chimborazo':
-      return 1.15
-    case 'pichincha':
-      return 1.35
-    case 'loja':
-      return 1.45
-    case 'azuay':
-      return 1.1
-    case 'guayas':
-      return 0.85
-    case 'manabi':
-      return 0.95
-    case 'imbabura':
-      return 1.05
-    default:
-      return 1.0
-  }
+// Factor multiplicador por país (escala de actividad simulada)
+function getRegionFactor(countryCode?: string): number {
+  return MOCK_COUNTRIES.find((c) => c.id === countryCode)?.factor ?? 1.0
 }
 
 // Simular API: GET /api/regions
@@ -304,7 +139,7 @@ export function mockGetCalendar(params: BaseFilterParams): CalendarResponse {
   const yearFrom = params.year_from || 2001
   const yearTo = params.year_to || 2025
   const filterScale = getFilterScales(params.confidence, params.daynight)
-  const provFactor = getProvinceFactor(params.province_id)
+  const provFactor = getRegionFactor(params.country_code)
 
   const weeks: CalendarWeekItem[] = []
 
@@ -331,7 +166,7 @@ export function mockGetCalendar(params: BaseFilterParams): CalendarResponse {
 
 // Simular API: POST /api/climatology
 export function mockGetClimatology(params: BaseFilterParams): ClimatologyResponse {
-  const provFactor = getProvinceFactor(params.province_id)
+  const provFactor = getRegionFactor(params.country_code)
   const filterScale = getFilterScales(params.confidence, params.daynight)
   const weeks: ClimatologyWeekItem[] = []
 
@@ -366,7 +201,7 @@ export function mockGetClimatology(params: BaseFilterParams): ClimatologyRespons
 export function mockGetSeason(params: BaseFilterParams): SeasonResponse {
   const yearFrom = params.year_from || 2001
   const yearTo = params.year_to || 2025
-  const provFactor = getProvinceFactor(params.province_id)
+  const provFactor = getRegionFactor(params.country_code)
   const filterScale = getFilterScales(params.confidence, params.daynight)
 
   const years: SeasonYearItem[] = []
@@ -472,11 +307,11 @@ export function mockGetAnomalies(params: BaseFilterParams): AnomaliesResponse {
 export function mockGetHotspots(params: HotspotRequestParams): HotspotsResponse {
   const year = params.year || 2024
   const week = params.week || 36
-  const provFactor = getProvinceFactor(params.province_id)
+  const provFactor = getRegionFactor(params.country_code)
   const baseValue = calculateBaseFireValue(year, week, provFactor)
 
   // Determinar centro de la región o custom geometry
-  const region = MOCK_REGIONS.find((r) => r.id === params.province_id) || MOCK_REGIONS[0]
+  const region = MOCK_REGIONS.find((r) => r.id === params.country_code) || MOCK_REGIONS[0]
   const centerLat = region.center[0]
   const centerLon = region.center[1]
 
@@ -500,8 +335,9 @@ export function mockGetHotspots(params: HotspotRequestParams): HotspotsResponse 
     ]
     const cOffset = clusterOffsets[cluster]
 
-    const latOffset = cOffset[0] + (prng() - 0.5) * 0.09
-    const lonOffset = cOffset[1] + (prng() - 0.5) * 0.09
+    // Escala de país: los racimos se separan ~1° del centro
+    const latOffset = (cOffset[0] + (prng() - 0.5) * 0.09) * 10
+    const lonOffset = (cOffset[1] + (prng() - 0.5) * 0.09) * 10
 
     // FRP: Fire Radiative Power en Megawatts
     // La mayoría entre 8 y 45 MW, con algunos focos intensos de 100-240 MW
@@ -533,7 +369,7 @@ export function mockGetCurrentStatus(params: BaseFilterParams): CurrentStatusRes
   // Semana actual en el contexto del NASA Space Apps Challenge (o semana 36/46)
   const currentWeek = 37 // Semana crítica de la temporada seca andina
   const currentYear = 2024
-  const provFactor = getProvinceFactor(params.province_id)
+  const provFactor = getRegionFactor(params.country_code)
   const filterScale = getFilterScales(params.confidence, params.daynight)
 
   const value =
@@ -568,5 +404,100 @@ export function mockGetCurrentStatus(params: BaseFilterParams): CurrentStatusRes
     percentile,
     zscore,
     level,
+  }
+}
+
+/**
+ * Simulación de propagación en modo mock: no corre el autómata celular real
+ * (eso requiere el backend con viento/elevación en vivo). Genera 3 polígonos
+ * elípticos deterministas (según lat/lon) solo para poder demostrar la UI
+ * sin backend. El viento mostrado es simulado, no real.
+ */
+export function mockGetFireCast(params: FireCastRequestParams): FireCastResponse {
+  const rand = pseudoRandom(Math.round((params.lat * 10000 + params.lon * 10000) ** 2) % 2147483646 || 1)
+  const windSpeedKmh = Math.round((8 + rand() * 20) * 10) / 10
+  const windDirectionFromDeg = Math.round(rand() * 360)
+  const windToDeg = (windDirectionFromDeg + 180) % 360
+
+  const baseRadii: Record<'h6' | 'h12' | 'h24', number> = { h6: 900, h12: 1700, h24: 2800 }
+  const stretchFactor = Math.min(1.1, windSpeedKmh / 25)
+
+  const polygons = {
+    h6: windStretchedPolygonGeoJSON(params.lat, params.lon, baseRadii.h6, windToDeg, stretchFactor),
+    h12: windStretchedPolygonGeoJSON(params.lat, params.lon, baseRadii.h12, windToDeg, stretchFactor),
+    h24: windStretchedPolygonGeoJSON(params.lat, params.lon, baseRadii.h24, windToDeg, stretchFactor),
+  }
+
+  return {
+    ignition: { lat: params.lat, lon: params.lon },
+    wind: { speed_kmh: windSpeedKmh, direction_from_deg: windDirectionFromDeg },
+    cell_size_m: 180,
+    grid_radius_m: 5400,
+    polygons,
+    model: 'mock_elipse_demostrativa',
+    disclaimer:
+      'Modo simulación: polígono de demostración (no corre el motor físico real). Conecta el backend para la simulación con viento y pendiente reales.',
+  }
+}
+
+/**
+ * Ruta de evacuación en modo mock: no corre Dijkstra real (eso vive en el backend,
+ * sobre la misma grilla de FireCast). Traza una línea desde el brigadista alejándose
+ * del punto de ignición, con un pequeño quiebre para simular una desviación.
+ */
+export function mockGetEvacuationRoute(params: EvacuationRequestParams): EvacuationResponse {
+  const { brigade_lat, brigade_lon, ignition_lat, ignition_lon } = params
+  const rand = pseudoRandom(
+    Math.round((brigade_lat * 10000 + brigade_lon * 10000 + ignition_lat * 100 + ignition_lon * 100) ** 2) % 2147483646 || 1
+  )
+
+  const dLat = brigade_lat - ignition_lat
+  const dLon = brigade_lon - ignition_lon
+  const dist = Math.hypot(dLat, dLon) || 0.0001
+  const dirLat = dLat / dist
+  const dirLon = dLon / dist
+
+  // Punto de quiebre a mitad de camino, con un pequeño desvío lateral (simula esquivar humo)
+  const lateralLat = -dirLon
+  const lateralLon = dirLat
+  const bendStrength = (rand() - 0.5) * 0.006
+
+  const extend = 0.018 + rand() * 0.01
+  const midLat = brigade_lat + dirLat * extend * 0.5 + lateralLat * bendStrength
+  const midLon = brigade_lon + dirLon * extend * 0.5 + lateralLon * bendStrength
+  const exitLat = brigade_lat + dirLat * extend
+  const exitLon = brigade_lon + dirLon * extend
+
+  const toMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const dLa = (lat2 - lat1) * 111_320
+    const dLo = (lon2 - lon1) * 111_320 * Math.cos((lat1 * Math.PI) / 180)
+    return Math.hypot(dLa, dLo)
+  }
+  const distanceM = toMeters(brigade_lat, brigade_lon, midLat, midLon) + toMeters(midLat, midLon, exitLat, exitLon)
+  const estimatedTimeMin = Math.round((distanceM / 1000 / 3.8) * 60 * 10) / 10 // ~3.8 km/h referencia
+
+  const riskRoll = rand()
+  const riskLevel: EvacuationRiskLevel = riskRoll > 0.75 ? 'alto' : riskRoll > 0.45 ? 'moderado' : 'bajo'
+
+  return {
+    brigade: { lat: brigade_lat, lon: brigade_lon, fuera_del_area_simulada: false },
+    exit_point: { lat: exitLat, lon: exitLon },
+    route: {
+      type: 'LineString',
+      coordinates: [
+        [brigade_lon, brigade_lat],
+        [midLon, midLat],
+        [exitLon, exitLat],
+      ],
+    },
+    distance_m: Math.round(distanceM * 10) / 10,
+    estimated_time_min: estimatedTimeMin,
+    max_danger_on_path: Math.round(rand() * 0.3 * 100) / 100,
+    max_smoke_on_path: Math.round(rand() * 0.3 * 100) / 100,
+    risk_level: riskLevel,
+    wind: { speed_kmh: Math.round((8 + rand() * 20) * 10) / 10, direction_from_deg: Math.round(rand() * 360) },
+    model: 'mock_linea_demostrativa',
+    disclaimer:
+      'Modo simulación: ruta de demostración (no corre Dijkstra real sobre la grilla). Conecta el backend para la ruta calculada con riesgo y pendiente reales.',
   }
 }

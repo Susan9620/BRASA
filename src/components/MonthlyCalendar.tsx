@@ -61,7 +61,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
       <div>
         <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Calendario {selectedYear}</p>
         <h3 className="mt-2 text-xl sm:text-2xl font-black tracking-tight text-[#0B1B3D]">Mes a mes</h3>
-        <p className="mt-1 text-sm text-slate-500">Cada mes frente a su promedio 2001–2025. Clic para verlo en el mapa.</p>
+        <p className="mt-1 text-sm text-slate-500">Cada mes frente a su promedio histórico. Clic para verlo en el mapa.</p>
       </div>
 
       {/* 12 meses */}

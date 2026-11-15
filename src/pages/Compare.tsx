@@ -78,7 +78,7 @@ export const Compare: React.FC = () => {
   const [curveView, setCurveView] = useState<'semanal' | 'acumulado'>('semanal')
   const weeklyRef = useRef<ReactECharts>(null)
 
-  const selectedRegion = regions?.find((r) => r.id === filters.provinceId) || regions?.[0]
+  const selectedRegion = regions?.find((r) => r.id === filters.countryCode)
 
   const seasonYears = useMemo(() => [...(season?.years ?? [])].sort((a, b) => a.year - b.year), [season])
   const availableYears = useMemo(() => seasonYears.map((y) => y.year).sort((a, b) => b - a), [seasonYears])
@@ -170,7 +170,7 @@ export const Compare: React.FC = () => {
   /* 2. Actividad mensual frente al promedio histórico */
   const monthlyOption = {
     tooltip: { ...TOOLTIP, valueFormatter: (v: number | null) => (v === null ? '—' : `${v.toLocaleString('es-EC')} fcd`) },
-    legend: { ...LEGEND, data: [String(yearA), String(yearB), 'Promedio 2001–2025'] },
+    legend: { ...LEGEND, data: [String(yearA), String(yearB), `Promedio ${filters.yearRange[0]}–${filters.yearRange[1]}`] },
     grid: { top: 16, left: 52, right: 16, bottom: 44 },
     xAxis: { ...AXIS_X, boundaryGap: true, data: MONTHS_SHORT, axisLabel: { ...AXIS_X.axisLabel, interval: 0 } },
     yAxis: AXIS_Y,
@@ -178,7 +178,7 @@ export const Compare: React.FC = () => {
       { name: String(yearA), type: 'bar', data: monthly.a, barGap: '10%', barMaxWidth: 18, itemStyle: { color: COLOR_A, borderRadius: [4, 4, 0, 0] } },
       { name: String(yearB), type: 'bar', data: monthly.b, barMaxWidth: 18, itemStyle: { color: COLOR_B, borderRadius: [4, 4, 0, 0] } },
       {
-        name: 'Promedio 2001–2025',
+        name: `Promedio ${filters.yearRange[0]}–${filters.yearRange[1]}`,
         type: 'line',
         data: monthly.mean,
         symbol: 'circle',
@@ -294,7 +294,7 @@ export const Compare: React.FC = () => {
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Análisis histórico</p>
           <h1 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight leading-none">Año contra año</h1>
-          <p className="mt-3 text-slate-500">{selectedRegion?.name || 'Ecuador'}</p>
+          <p className="mt-3 text-slate-500">{selectedRegion?.name ?? filters.countryCode}</p>
         </div>
         <div className="flex items-center gap-3">
           {yearSelect(yearA, setYearA, COLOR_A, 'Año A')}
@@ -309,7 +309,7 @@ export const Compare: React.FC = () => {
         <>
           <Card
             eyebrow="Contexto"
-            title="Total anual 2001–2025"
+            title={`Total anual ${filters.yearRange[0]}–${filters.yearRange[1]}`}
             subtitle="Clic en una barra para usarla como año A."
           >
             <div className="w-full h-[220px]">

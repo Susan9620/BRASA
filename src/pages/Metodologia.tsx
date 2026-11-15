@@ -5,19 +5,19 @@ import { PRIMARY_BUTTON_FX } from '../utils/buttonFx'
 const STEPS = [
   {
     title: 'Fuentes satelitales',
-    body: 'Focos de calor activos de NASA FIRMS: MODIS (Terra/Aqua, 1 km, desde 2001) y VIIRS (S-NPP/NOAA-20, 375 m, desde 2012).',
+    body: 'Focos de calor activos de NASA FIRMS: MODIS (Terra/Aqua, 1 km) y VIIRS (S-NPP/NOAA-20, 375 m). Series globales por país de 2005 a 2025.',
   },
   {
     title: 'fire_cell_days',
-    body: 'Para cada semana se cuentan las combinaciones celda–día de una cuadrícula común con al menos un foco activo. Así, la mayor resolución de VIIRS no multiplica artificialmente la actividad.',
+    body: 'Para cada semana se cuenta la presencia de al menos una detección por celda de 1° × 1°, por día y por familia de sensor. No equivale a número de incendios.',
   },
   {
-    title: 'Armonización',
-    body: 'VIIRS se calibra a la escala de MODIS usando el periodo en que ambos sensores observan a la vez (2012–2018). El resultado es una serie continua y comparable de 2001 a 2025.',
+    title: 'Sensores por separado',
+    body: 'MODIS y VIIRS tienen resoluciones distintas: VIIRS detecta más celdas activas. Por eso no se armonizan ni se comparan como cifras equivalentes. La opción «Ambos» muestra su suma solo como referencia.',
   },
   {
     title: 'Climatología y anomalías',
-    body: 'Para cada semana ISO se calcula la media y los percentiles P10, P50 y P90 de 2001–2025. Una semana se compara con su propia historia mediante su percentil y su z-score.',
+    body: 'Para cada semana ISO se calcula la media y los percentiles P10, P50 y P90 del periodo consultado. Una semana se compara con su propia historia mediante su percentil y su z-score.',
   },
 ]
 
@@ -34,11 +34,11 @@ export const Metodologia: React.FC = () => {
       <section className="max-w-6xl mx-auto px-6 sm:px-10 pt-16 sm:pt-24 pb-16">
         <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Metodología</p>
         <h1 className="mt-4 max-w-3xl text-4xl sm:text-6xl font-black tracking-tight leading-[1.02]">
-          De focos dispersos a una <span className="text-[#FF7900]">serie armonizada</span>.
+          De focos dispersos a un <span className="text-[#FF7900]">calendario global</span>.
         </h1>
         <p className="mt-6 max-w-2xl text-lg text-slate-600 leading-relaxed">
-          Dos sensores, dos resoluciones y 25 años de datos, convertidos en un calendario de actividad de quema que se
-          puede comparar semana a semana.
+          Dos sensores, dos resoluciones y dos décadas de datos por país, convertidos en un calendario de actividad de
+          quema que se puede comparar semana a semana.
         </p>
       </section>
 
@@ -80,6 +80,8 @@ export const Metodologia: React.FC = () => {
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Limitaciones</p>
             <ul className="mt-6 space-y-4 text-slate-300 leading-relaxed">
               <li>La nubosidad y los horarios de paso del satélite pueden ocultar focos.</li>
+              <li>Cada celda se asigna a un país según su centro: los bordes son aproximados.</li>
+              <li>El año de cada serie es el año ISO de la semana, no siempre el año calendario.</li>
               <li>Un foco de calor no siempre es un incendio: incluye quemas agrícolas y fuentes industriales.</li>
               <li>
                 Los niveles son estadísticos y <strong className="text-white">no constituyen alertas oficiales</strong>.

@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Satellite, Menu, X } from 'lucide-react'
 import { isLandingPath } from '../utils/routes'
-import { IS_MOCK_MODE } from '../api/client'
 import { NAV_ITEMS } from '../utils/navItems'
 
 /* Enlaces superiores de las páginas informativas */
@@ -68,13 +67,6 @@ export const Navbar: React.FC = () => {
           </nav>
         ) : (
           <div className="hidden lg:flex items-center gap-2">
-            {/* Indicador persistente mientras no haya base de datos conectada (el banner se puede cerrar) */}
-            {IS_MOCK_MODE && (
-              <span className="inline-flex items-center gap-2 text-xs font-bold text-[#B45309] px-3.5 py-1.5 rounded-full bg-[#FFF9E6]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#FF7900]" />
-                Datos simulados
-              </span>
-            )}
             <span className="inline-flex items-center gap-2 text-xs font-bold text-[#0B1B3D] px-3.5 py-1.5 rounded-full border border-slate-200">
               <Satellite className="w-4 h-4 text-[#FF7900]" />
               MODIS & VIIRS

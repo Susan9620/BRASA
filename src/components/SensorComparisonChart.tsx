@@ -1,14 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
-import type { BaseFilterParams, CalendarResponse, SensorType } from '../types'
+import type { BaseFilterParams, CalendarResponse } from '../types'
 import { fetchCalendar } from '../api/client'
 import { useFilters } from '../hooks/useFilters'
 import { ChartSkeleton } from './SkeletonLoader'
-
-const VIIRS_START_YEAR = 2012
-const OVERLAP: [number, number] = [2012, 2018]
-
-type SeriesBySensor = Record<SensorType, CalendarResponse | null>
 
 const annualTotals = (calendar: CalendarResponse | null): Map<number, number> => {
   const totals = new Map<number, number>()
@@ -17,12 +12,15 @@ const annualTotals = (calendar: CalendarResponse | null): Map<number, number> =>
 }
 
 /**
- * Muestra por qué hace falta armonizar: totales anuales de MODIS y VIIRS sin ajustar
- * frente a la serie armonizada que usa BRASA.
+ * MODIS y VIIRS lado a lado (totales anuales). No se suman ni se presentan como una
+ * serie armonizada: la API no aplica armonización y los sensores tienen resoluciones distintas.
  */
-export const HarmonizationChart: React.FC = () => {
+export const SensorComparisonChart: React.FC = () => {
   const { filters } = useFilters()
-  const [data, setData] = useState<SeriesBySensor>({ harmonized: null, modis: null, viirs: null })
+  const [data, setData] = useState<{ modis: CalendarResponse | null; viirs: CalendarResponse | null }>({
+    modis: null,
+    viirs: null,
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(false)
 
@@ -33,17 +31,15 @@ export const HarmonizationChart: React.FC = () => {
       year_to: filters.yearRange[1],
       confidence: filters.confidence,
       daynight: filters.daynight,
-      province_id: filters.provinceId,
-      canton_id: filters.cantonId,
+      country_code: filters.countryCode,
       geojson: filters.customGeometry?.geojson,
     }
-    const sensors: SensorType[] = ['harmonized', 'modis', 'viirs']
 
     setIsLoading(true)
     setError(false)
-    Promise.all(sensors.map((sensor) => fetchCalendar({ ...base, sensor }, ac.signal)))
-      .then(([harmonized, modis, viirs]) => {
-        setData({ harmonized, modis, viirs })
+    Promise.all([fetchCalendar({ ...base, sensor: 'modis' }, ac.signal), fetchCalendar({ ...base, sensor: 'viirs' }, ac.signal)])
+      .then(([modis, viirs]) => {
+        setData({ modis, viirs })
         setIsLoading(false)
       })
       .catch((err) => {
@@ -53,33 +49,26 @@ export const HarmonizationChart: React.FC = () => {
       })
 
     return () => ac.abort()
-  }, [
-    filters.yearRange,
-    filters.confidence,
-    filters.daynight,
-    filters.provinceId,
-    filters.cantonId,
-    filters.customGeometry?.geojson,
-  ])
+  }, [filters.yearRange, filters.confidence, filters.daynight, filters.countryCode, filters.customGeometry?.geojson])
 
-  const { years, modis, viirs, harmonized, ratio } = useMemo(() => {
-    const h = annualTotals(data.harmonized)
+  const { years, modis, viirs, ratio, overlapLabel } = useMemo(() => {
     const m = annualTotals(data.modis)
     const v = annualTotals(data.viirs)
-    const yrs = Array.from(h.keys()).sort((a, b) => a - b)
+    const yrs = Array.from(new Set([...m.keys(), ...v.keys()])).sort((a, b) => a - b)
     const round = (n: number | undefined) => (n === undefined ? null : Math.round(n))
 
-    // Relación VIIRS/MODIS en el periodo de solapamiento (lo que corrige la armonización)
-    const overlapYears = yrs.filter((y) => y >= OVERLAP[0] && y <= OVERLAP[1])
-    const sumV = overlapYears.reduce((acc, y) => acc + (v.get(y) ?? 0), 0)
-    const sumM = overlapYears.reduce((acc, y) => acc + (m.get(y) ?? 0), 0)
+    // Años en que ambos sensores registran actividad: referencia de cuánto difieren
+    const overlap = yrs.filter((y) => (m.get(y) ?? 0) > 0 && (v.get(y) ?? 0) > 0)
+    const sumM = overlap.reduce((acc, y) => acc + (m.get(y) ?? 0), 0)
+    const sumV = overlap.reduce((acc, y) => acc + (v.get(y) ?? 0), 0)
 
     return {
       years: yrs,
-      harmonized: yrs.map((y) => round(h.get(y))),
       modis: yrs.map((y) => round(m.get(y))),
-      viirs: yrs.map((y) => (y >= VIIRS_START_YEAR ? round(v.get(y)) : null)),
-      ratio: sumM > 0 ? sumV / sumM : null,
+      // Sin actividad VIIRS registrada = sin línea (aún no había datos del sensor)
+      viirs: yrs.map((y) => ((v.get(y) ?? 0) > 0 ? round(v.get(y)) : null)),
+      ratio: sumM > 0 && overlap.length ? sumV / sumM : null,
+      overlapLabel: overlap.length ? `${overlap[0]}–${overlap[overlap.length - 1]}` : '',
     }
   }, [data])
 
@@ -92,7 +81,7 @@ export const HarmonizationChart: React.FC = () => {
       valueFormatter: (v: number | null) => (v === null || v === undefined ? '—' : `${v.toLocaleString('es-EC')} fcd`),
     },
     legend: {
-      data: ['Armonizado (BRASA)', 'MODIS sin ajustar', 'VIIRS sin ajustar'],
+      data: ['MODIS (1 km)', 'VIIRS (375 m)'],
       bottom: 0,
       icon: 'roundRect',
       itemWidth: 14,
@@ -117,35 +106,22 @@ export const HarmonizationChart: React.FC = () => {
     },
     series: [
       {
-        name: 'MODIS sin ajustar',
+        name: 'MODIS (1 km)',
         type: 'line',
         data: modis,
-        symbol: 'none',
-        lineStyle: { color: '#94A3B8', width: 1.5 },
-        itemStyle: { color: '#94A3B8' },
-        markArea: {
-          silent: true,
-          itemStyle: { color: 'rgba(11, 27, 61, 0.04)' },
-          label: { color: '#64748b', fontSize: 11, position: 'insideTop' },
-          data: [[{ name: 'Calibración', xAxis: String(OVERLAP[0]) }, { xAxis: String(OVERLAP[1]) }]],
-        },
-      },
-      {
-        name: 'VIIRS sin ajustar',
-        type: 'line',
-        data: viirs,
-        symbol: 'none',
-        lineStyle: { color: '#60A5FA', width: 1.5, type: 'dashed' },
-        itemStyle: { color: '#60A5FA' },
-      },
-      {
-        name: 'Armonizado (BRASA)',
-        type: 'line',
-        data: harmonized,
         symbol: 'circle',
         symbolSize: 5,
-        lineStyle: { color: '#FF7900', width: 3 },
+        lineStyle: { color: '#FF7900', width: 2.5 },
         itemStyle: { color: '#FF7900' },
+      },
+      {
+        name: 'VIIRS (375 m)',
+        type: 'line',
+        data: viirs,
+        symbol: 'circle',
+        symbolSize: 5,
+        lineStyle: { color: '#3B82F6', width: 2.5 },
+        itemStyle: { color: '#3B82F6' },
       },
     ],
   }
@@ -154,18 +130,16 @@ export const HarmonizationChart: React.FC = () => {
     <div className="bg-white rounded-[28px] p-6 sm:p-7 border border-slate-200/70">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Armonización</p>
-          <h3 className="mt-2 text-xl sm:text-2xl font-black tracking-tight text-[#0B1B3D]">
-            Una sola serie para dos sensores
-          </h3>
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Sensores</p>
+          <h3 className="mt-2 text-xl sm:text-2xl font-black tracking-tight text-[#0B1B3D]">MODIS y VIIRS, por separado</h3>
           <p className="mt-1 max-w-xl text-sm text-slate-500">
-            Sin ajustar, la llegada de VIIRS en 2012 crea un salto artificial. BRASA lo calibra con los años en que ambos
-            sensores coinciden.
+            Por su mayor resolución, VIIRS detecta más celdas activas. Sus series no se suman ni se comparan
+            directamente: muestran tendencias, no cifras equivalentes.
           </p>
         </div>
         {ratio !== null && (
           <div className="sm:text-right">
-            <p className="text-xs text-slate-400">VIIRS / MODIS {OVERLAP[0]}–{OVERLAP[1]}</p>
+            <p className="text-xs text-slate-400">VIIRS / MODIS {overlapLabel}</p>
             <p className="text-2xl font-black tracking-tight text-[#0B1B3D]">×{ratio.toFixed(1)}</p>
           </div>
         )}

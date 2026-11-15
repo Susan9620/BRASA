@@ -15,6 +15,8 @@ interface FireCalendarProps {
   selectedYear: number
   selectedWeek: number
   onSelectWeek: (year: number, week: number) => void
+  /** Marca el año de inicio de VIIRS (solo tiene sentido si la serie incluye VIIRS) */
+  showViirsStart?: boolean
 }
 
 export const FireCalendar: React.FC<FireCalendarProps> = ({
@@ -23,6 +25,7 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
   selectedYear,
   selectedWeek,
   onSelectWeek,
+  showViirsStart = false,
 }) => {
   const chartRef = useRef<ReactECharts>(null)
 
@@ -41,7 +44,7 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
       if (item.value > max) max = item.value
     })
 
-    // Años de 2001 a 2025
+    // Años disponibles en la respuesta
     const sortedYears = Array.from(yearsSet).sort((a, b) => a - b)
     const weeksList = Array.from({ length: 52 }, (_, i) => i + 1)
 
@@ -88,9 +91,9 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
         const source = sourceLookup.get(`${year}-${week}`) || 'MODIS'
 
         const sourceLabels: Record<string, string> = {
-          MODIS: 'MODIS (Terra/Aqua 1km)',
-          BOTH: 'Armonizado (MODIS + VIIRS)',
-          VIIRS_CAL: 'VIIRS Calibrado (375m)',
+          MODIS: 'MODIS (Terra/Aqua 1 km)',
+          BOTH: 'MODIS + VIIRS (suma)',
+          VIIRS_CAL: 'VIIRS (375 m)',
         }
         const sourceLabel = sourceLabels[source] || source
 
@@ -134,7 +137,7 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
     yAxis: {
       type: 'category',
       data: years.map(String),
-      inverse: true, // 2025 en la parte superior, 2001 en la base como en el screenshot
+      inverse: true, // año más reciente arriba
       splitArea: { show: false },
       axisLabel: {
         fontSize: 10,
@@ -172,8 +175,8 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
           borderWidth: 0.5,
           borderColor: '#ffffff',
         },
-        // Inicio de la era VIIRS: desde aquí la serie combina ambos sensores armonizados
-        markLine: years.includes(VIIRS_START_YEAR)
+        // Inicio de la era VIIRS (solo si la serie incluye VIIRS)
+        markLine: showViirsStart && years.includes(VIIRS_START_YEAR)
           ? {
               silent: true,
               symbol: 'none',
@@ -224,7 +227,7 @@ export const FireCalendar: React.FC<FireCalendarProps> = ({
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Calendario de quema</p>
           <h3 className="mt-2 text-xl sm:text-2xl font-black tracking-tight text-[#0B1B3D]">
-            Actividad semanal 2001–2025
+            Actividad semanal {years.length ? `${years[0]}–${years[years.length - 1]}` : ''}
           </h3>
           <p className="mt-1 text-sm text-slate-500">
             Cada celda es una semana en fire_cell_days. Haz clic para verla en el mapa.

@@ -71,7 +71,7 @@ export const Home: React.FC = () => {
 
         {/* Descripción de alcance y satélites */}
         <div className="text-slate-600 text-sm sm:text-base md:text-lg leading-relaxed space-y-0.5 max-w-xl mx-auto font-normal px-4">
-          <p>Análisis de la actividad de quema en Ecuador (2001 – 2025)</p>
+          <p>Análisis global de la actividad de quema (2005 – 2025)</p>
           <p>con datos satelitales MODIS y VIIRS.</p>
         </div>
 
@@ -98,13 +98,13 @@ export const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* Gráfico Curvo del Planeta Tierra con Ecuador iluminado en el horizonte */}
+      {/* Planeta Tierra en el horizonte */}
       <div className="w-full relative mt-auto flex justify-center items-end overflow-hidden pointer-events-none select-none">
         <div ref={earthRef} className="w-full -mb-2 flex justify-center will-change-transform">
           {/* PNG con fondo transparente; se recorta el margen vacío superior (aspect 4/1, anclada abajo) */}
           <img
             src="/Landing_planeta.PNG"
-            alt="Ecuador iluminado desde el espacio con actividad satelital de quemas"
+            alt="La Tierra vista desde el espacio con actividad satelital de quemas"
             className="w-full max-w-[1400px] 2xl:max-w-[1700px] aspect-[4/1] object-cover object-bottom pointer-events-none"
           />
         </div>

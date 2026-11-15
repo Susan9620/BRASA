@@ -46,7 +46,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
     )
   }
 
-  // 1. Total del año y variación respecto al promedio anual 2001–2025
+  // 1. Total del año y variación respecto al promedio anual del rango consultado
   const yearSeason = season.years.find((y) => y.year === selectedYear)
   const total = yearSeason?.total ?? null
   const meanTotal = season.years.length ? season.years.reduce((acc, y) => acc + y.total, 0) / season.years.length : null
@@ -95,7 +95,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
             <span className="ml-1.5 text-sm font-semibold text-slate-400">semana{unusualCount === 1 ? '' : 's'}</span>
           </>
         }
-        note="Z-score ≥ 1.6σ"
+        note="Semanas marcadas por el backend"
       />
 
       <Link to="/alertas" className="group block hover:bg-[#FFF8F2] transition-colors">

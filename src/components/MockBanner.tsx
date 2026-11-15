@@ -22,7 +22,7 @@ export const MockBanner: React.FC = () => {
             Datos simulados de demostración
           </span>
           <span className="text-slate-600 text-xs hidden md:inline">
-            — BRASA está operando en modo simulación para el NASA Space Apps Challenge 2026. Climatología histórica de Ecuador (2001–2025).
+            — BRASA está operando en modo simulación para el NASA Space Apps Challenge 2026. Valores de demostración, no son registros reales de NASA.
           </span>
         </div>
       </div>

@@ -3,7 +3,6 @@ import '@testing-library/jest-dom/vitest'
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { MockBanner } from '../components/MockBanner'
 import { Navbar } from '../components/Navbar'
 import { Sidebar } from '../components/Sidebar'
 import { ErrorMessage } from '../components/ErrorMessage'
@@ -11,11 +10,6 @@ import { KpiCards } from '../components/KpiCards'
 import type { CurrentStatusResponse, SeasonResponse } from '../types'
 
 describe('Componentes UI de BRASA', () => {
-  it('renderiza el banner de datos simulados', () => {
-    render(<MockBanner />)
-    expect(screen.getByText(/Datos simulados de demostración/i)).toBeInTheDocument()
-  })
-
   it('renderiza la barra de navegación con enlaces a todas las secciones', () => {
     render(
       <MemoryRouter>
@@ -104,6 +98,6 @@ describe('Componentes UI de BRASA', () => {
     expect(screen.getByText(/Mes más activo/i)).toBeInTheDocument()
     expect(screen.getByText(/Periodos inusuales 2024/i)).toBeInTheDocument()
     expect(screen.getByText(/Estado de esta semana/i)).toBeInTheDocument()
-    expect(screen.getByText(/inusual/i)).toBeInTheDocument()
+    expect(screen.getByText('Inusual')).toBeInTheDocument()
   })
 })

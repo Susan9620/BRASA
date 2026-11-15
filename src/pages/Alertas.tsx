@@ -8,6 +8,7 @@ import { formatWeekFriendly } from '../utils/dateUtils'
 import { KpiCardSkeleton, ChartSkeleton } from '../components/SkeletonLoader'
 import { ClimatologyChart } from '../components/ClimatologyChart'
 import { AnomalyList } from '../components/AnomalyList'
+import { SENSOR_LABELS } from '../utils/dataConfig'
 
 /* Paleta del semáforo BRASA */
 const LEVELS: Record<StatusLevel, { label: string; color: string; soft: string; criterion: string }> = {
@@ -27,7 +28,7 @@ const LEVELS: Record<StatusLevel, { label: string; color: string; soft: string; 
     label: 'Inusual',
     color: '#E53935',
     soft: 'bg-[#FDE8E8] text-[#E53935]',
-    criterion: 'Z-score ≥ 2.0σ o percentil ≥ P90. Comparable a 2012 y 2024.',
+    criterion: 'Z-score ≥ 2.0σ o percentil ≥ P90. Desviación extrema frente a su historia.',
   },
 }
 
@@ -56,8 +57,7 @@ export const Alertas: React.FC = () => {
     navigate('/explorar')
   }
 
-  const selectedRegion = regions?.find((r) => r.id === filters.provinceId) || regions?.[0]
-  const selectedCanton = selectedRegion?.cantons?.find((c) => c.id === filters.cantonId)
+  const selectedRegion = regions?.find((r) => r.id === filters.countryCode)
 
   if (isLoading || !currentStatus) {
     return (
@@ -76,8 +76,7 @@ export const Alertas: React.FC = () => {
   const climWeek = climatology?.weeks.find((w) => w.week === currentStatus.week)
   const statusYear = currentStatus.year ?? DEFAULT_STATUS_YEAR
   const level = LEVELS[currentStatus.level]
-  const regionName = selectedRegion?.name || 'Chimborazo'
-  const cantonName = selectedCanton ? selectedCanton.name : 'Riobamba'
+  const regionName = selectedRegion?.name ?? filters.countryCode
   const percentile = Math.min(100, Math.max(0, currentStatus.percentile))
 
   const headline = {
@@ -88,8 +87,8 @@ export const Alertas: React.FC = () => {
 
   const explanation = {
     normal: `Los ${currentStatus.value} fire_cell_days detectados están alineados con el promedio histórico (${climWeek?.mean ?? '—'}) para la semana ${currentStatus.week} en ${regionName}, dentro del rango P10–P90.`,
-    elevado: `Los ${currentStatus.value} fire_cell_days superan el percentil P70 de la serie 2001–2025 y la media climatológica (${climWeek?.mean ?? '—'}), lo que sugiere condiciones secas persistentes o focos de quema concentrados.`,
-    inusual: `Los ${currentStatus.value} fire_cell_days se ubican en el percentil P${currentStatus.percentile} (${formatZ(currentStatus.zscore)}) y superan ampliamente el umbral P90 (${climWeek?.p90 ?? '—'}), con una densidad de focos equiparable a las temporadas críticas de 2012 y 2024.`,
+    elevado: `Los ${currentStatus.value} fire_cell_days superan el percentil P70 de la serie ${filters.yearRange[0]}–${filters.yearRange[1]} y la media climatológica (${climWeek?.mean ?? '—'}), lo que sugiere condiciones secas persistentes o focos de quema concentrados.`,
+    inusual: `Los ${currentStatus.value} fire_cell_days se ubican en el percentil P${currentStatus.percentile} (${formatZ(currentStatus.zscore)}) y superan ampliamente el umbral P90 (${climWeek?.p90 ?? '—'}), una desviación extrema respecto a su propia serie histórica.`,
   }[currentStatus.level]
 
   const stats = [
@@ -99,10 +98,10 @@ export const Alertas: React.FC = () => {
   ]
 
   const context = [
-    { label: 'Provincia', value: regionName },
-    { label: 'Cantón', value: cantonName },
+    { label: 'País', value: regionName },
+    { label: 'Área', value: filters.customGeometry ? 'Personalizada' : 'Todo el país' },
     { label: 'Semana ISO', value: `${currentStatus.week} · ${statusYear}` },
-    { label: 'Sensores', value: 'MODIS 1 km + VIIRS 375 m' },
+    { label: 'Sensor', value: SENSOR_LABELS[filters.sensor] },
   ]
 
   const params = [
@@ -120,7 +119,7 @@ export const Alertas: React.FC = () => {
           <Eyebrow>Semáforo estadístico · {formatWeekFriendly(statusYear, currentStatus.week)}</Eyebrow>
           <h1 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight leading-none">Alertas</h1>
           <p className="mt-3 text-slate-500">
-            {cantonName}, {regionName}
+            {regionName}
           </p>
         </div>
 

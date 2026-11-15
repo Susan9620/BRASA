@@ -61,7 +61,7 @@ export const ExportControls: React.FC<ExportControlsProps> = ({
 
   const handleExportClimatologyCSV = () => {
     if (!climatology) return
-    exportToCSV('brasa_climatologia_historica_ecuador', climatology.weeks)
+    exportToCSV('brasa_climatologia_historica', climatology.weeks)
   }
 
   const handleExportAnomaliesCSV = () => {

@@ -8,7 +8,7 @@ import { FireCalendar } from '../components/FireCalendar'
 import { TimelinePlayer } from '../components/TimelinePlayer'
 import { ExportControls } from '../components/ExportControls'
 import { ErrorMessage } from '../components/ErrorMessage'
-import { HarmonizationChart } from '../components/HarmonizationChart'
+import { SensorComparisonChart } from '../components/SensorComparisonChart'
 import { MonthlyCalendar } from '../components/MonthlyCalendar'
 
 const SectionLabel: React.FC<{ title: string; note: string }> = ({ title, note }) => (
@@ -24,7 +24,6 @@ export const Explore: React.FC = () => {
     selectedWeek,
     setSelectedWeek,
     setSelectedYear,
-    setCustomGeometry,
   } = useFilters()
 
   const {
@@ -37,20 +36,17 @@ export const Explore: React.FC = () => {
     currentStatus,
     isLoading,
     isHotspotsLoading,
+    hotspotsUnavailable,
     error,
     refetch,
   } = useBrasaData()
 
-  const selectedRegion = regions?.find((r) => r.id === filters.provinceId) || regions?.[0]
-  const selectedCanton = selectedRegion?.cantons?.find((c) => c.id === filters.cantonId)
+  const selectedRegion = regions?.find((r) => r.id === filters.countryCode)
+  const [yearFrom, yearTo] = filters.yearRange
 
   const handleSelectWeekAndYear = (year: number, week: number) => {
     setSelectedYear(year)
     setSelectedWeek(week)
-  }
-
-  const handleClearGeometry = () => {
-    setCustomGeometry(null)
   }
 
   const peakWeek = season?.years.find((y) => y.year === filters.selectedYear)?.peak_week
@@ -63,7 +59,8 @@ export const Explore: React.FC = () => {
           <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Dashboard</p>
           <h1 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight leading-none">Explorar</h1>
           <p className="mt-3 text-slate-500">
-            {selectedCanton ? selectedCanton.name : 'Riobamba'}, {selectedRegion?.name || 'Chimborazo'}
+            {selectedRegion?.name ?? filters.countryCode}
+            {filters.customGeometry ? ' · área personalizada' : ''}
           </p>
         </div>
 
@@ -95,20 +92,17 @@ export const Explore: React.FC = () => {
 
           <MapView
             region={selectedRegion}
-            canton={selectedCanton}
             hotspots={hotspots}
             isLoadingHotspots={isHotspotsLoading}
-            selectedYear={filters.selectedYear}
-            selectedWeek={selectedWeek}
+            hotspotsUnavailable={hotspotsUnavailable}
             customGeometry={filters.customGeometry}
-            onClearGeometry={handleClearGeometry}
           />
 
           <TimelinePlayer
             currentWeek={selectedWeek}
             selectedYear={filters.selectedYear}
             onWeekChange={(week) => setSelectedWeek(week)}
-            peakWeek={peakWeek}
+            peakWeek={peakWeek ? Math.min(peakWeek, 52) : undefined}
           />
 
           <MonthlyCalendar
@@ -121,7 +115,7 @@ export const Explore: React.FC = () => {
           />
 
           <div className="pt-6">
-            <SectionLabel title="Serie histórica" note="2001–2025" />
+            <SectionLabel title="Serie histórica" note={`${yearFrom}–${yearTo}`} />
           </div>
 
           <FireCalendar
@@ -130,9 +124,10 @@ export const Explore: React.FC = () => {
             selectedYear={filters.selectedYear}
             selectedWeek={selectedWeek}
             onSelectWeek={handleSelectWeekAndYear}
+            showViirsStart={filters.sensor !== 'modis'}
           />
 
-          <HarmonizationChart />
+          <SensorComparisonChart />
         </div>
 
         {/* Filtros */}

@@ -28,6 +28,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from firecast import FireCastError, run_firecast
+from evacuation import EvacuationError, plan_evacuation_route
+
 # ─────────────────────────────────────────────
 DB_PATH = Path(__file__).parent / "brasa.db"
 app = FastAPI(title="BRASA API", version="1.0.0")
@@ -59,6 +62,18 @@ class HotspotFilter(BaseFilter):
     week: Optional[int] = None
     date_from: Optional[str] = None
     date_to: Optional[str] = None
+
+
+class FireCastRequest(BaseModel):
+    lat: float
+    lon: float
+
+
+class EvacuationRequest(BaseModel):
+    brigade_lat: float
+    brigade_lon: float
+    ignition_lat: float
+    ignition_lon: float
 
 
 # ─────────────────────────────────────────────
@@ -433,6 +448,33 @@ def get_current_status(params: BaseFilter):
         "zscore": zscore,
         "level": level,
     }
+
+
+@app.post("/api/firecast")
+def post_firecast(params: FireCastRequest):
+    """Simulación de propagación de incendio (prototipo) a 6/12/24h desde un punto de ignición.
+
+    No depende de brasa.db: usa viento y elevación en vivo de Open-Meteo.
+    """
+    try:
+        return run_firecast(params.lat, params.lon)
+    except FireCastError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.post("/api/evacuation-route")
+def post_evacuation_route(params: EvacuationRequest):
+    """Ruta segura de evacuación (prototipo) desde la posición de un brigadista,
+    evitando el área de propagación proyectada y el cono de humo a favor del viento.
+
+    Reutiliza la misma simulación que /api/firecast para el punto de ignición dado.
+    """
+    try:
+        return plan_evacuation_route(
+            params.brigade_lat, params.brigade_lon, params.ignition_lat, params.ignition_lon
+        )
+    except EvacuationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
 
 
 @app.get("/health")
