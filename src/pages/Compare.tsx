@@ -86,7 +86,11 @@ export const Compare: React.FC = () => {
     availableProvinces[0]
 
   const seasonYears = useMemo(() => [...(season?.years ?? [])].sort((a, b) => a.year - b.year), [season])
-  const availableYears = useMemo(() => seasonYears.map((y) => y.year).sort((a, b) => b - a), [seasonYears])
+  const availableYears = useMemo(() => {
+    const fromSeason = seasonYears.map((y) => y.year)
+    const fullRange = Array.from({ length: 25 }, (_, i) => 2001 + i)
+    return Array.from(new Set([...fromSeason, ...fullRange])).sort((a, b) => b - a)
+  }, [seasonYears])
 
   const seasonA = season?.years.find((y) => y.year === yearA)
   const seasonB = season?.years.find((y) => y.year === yearB)

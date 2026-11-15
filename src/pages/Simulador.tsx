@@ -459,17 +459,6 @@ ESTADO DE OPERACIÓN: ${evac?.status ?? 'NO LOCALIZADA'}`
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setClickMode(clickMode === 'fire' ? 'none' : 'fire')}
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${clickMode === 'fire'
-                  ? 'bg-red-600 text-white border-red-600 ring-2 ring-red-300'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-red-50 hover:text-red-700'
-                  }`}
-              >
-                <Flame className="w-4 h-4 text-red-500" />
-                <span>{clickMode === 'fire' ? 'Clic en el mapa para situar foco...' : 'Mover Foco de Calor'}</span>
-              </button>
-
-              <button
                 onClick={() => setClickMode(clickMode === 'brigade' ? 'none' : 'brigade')}
                 className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${clickMode === 'brigade'
                   ? 'bg-sky-600 text-white border-sky-600 ring-2 ring-sky-300'
@@ -493,23 +482,6 @@ ESTADO DE OPERACIÓN: ${evac?.status ?? 'NO LOCALIZADA'}`
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Banner de Ruteo Continuo */}
-          <div className="flex items-center justify-between px-3.5 py-2.5 bg-emerald-50 border border-emerald-200/90 rounded-xl text-xs text-emerald-800">
-            <span className="flex items-center gap-2 font-medium">
-              <Route className="w-4 h-4 text-emerald-600 shrink-0" />
-              {osrmRoute ? (
-                <span>
-                  Ruta continua conectada a <strong>senderos y vías reales de OpenStreetMap (OSRM)</strong>
-                </span>
-              ) : (
-                <span>
-                  Corredor táctico campotraviesa continuo por <strong>cresta segura y flanco frío</strong>
-                </span>
-              )}
-            </span>
-            {isLoadingRoute && <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600 shrink-0" />}
           </div>
 
           {/* Mapa */}

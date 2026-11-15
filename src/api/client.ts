@@ -22,11 +22,10 @@ import {
   mockGetSeason,
 } from './mock'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'https://brasa-api-mundial.onrender.com'
 export const IS_MOCK_MODE =
-  import.meta.env.VITE_USE_MOCK === undefined
-    ? true
-    : String(import.meta.env.VITE_USE_MOCK).toLowerCase() === 'true'
+  String(import.meta.env.VITE_USE_MOCK).toLowerCase() === 'true'
 
 // Utilidad para simular latencia de red mínima en modo mock (120ms)
 function mockDelay<T>(data: T, delayMs: number = 120, signal?: AbortSignal): Promise<T> {

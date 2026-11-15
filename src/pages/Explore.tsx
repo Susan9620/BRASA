@@ -12,7 +12,7 @@ import { ExportControls } from '../components/ExportControls'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { HarmonizationChart } from '../components/HarmonizationChart'
 import { MonthlyCalendar } from '../components/MonthlyCalendar'
-import { getProvincesForCountry } from '../utils/territoryData'
+import { getCitiesForCountry, getProvincesForCountry } from '../utils/territoryData'
 
 const SectionLabel: React.FC<{ title: string; note: string }> = ({ title, note }) => (
   <div className="flex items-baseline gap-3 pt-2">
@@ -45,11 +45,12 @@ export const Explore: React.FC = () => {
   } = useBrasaData()
 
   const availableProvinces = getProvincesForCountry(filters.country)
+  const availableCities = getCitiesForCountry(filters.country)
   const selectedRegion =
     availableProvinces.find((r) => r.id === filters.provinceId) ||
     regions?.find((r) => r.id === filters.provinceId) ||
     availableProvinces[0]
-  const selectedCanton = selectedRegion?.cantons?.find((c) => c.id === filters.cantonId)
+  const selectedCanton = availableCities.find((c) => c.id === filters.cantonId)
 
   const handleSelectWeekAndYear = (year: number, week: number) => {
     setSelectedYear(year)
@@ -70,8 +71,12 @@ export const Explore: React.FC = () => {
           <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#FF7900]">Dashboard</p>
           <h1 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight leading-none">Explorar</h1>
           <p className="mt-3 text-slate-500 font-medium">
-            {selectedCanton ? selectedCanton.name : 'Riobamba'}, {selectedRegion?.name || 'Chimborazo'} ·{' '}
-            <span className="font-bold text-[#0B1B3D]">{filters.countryName || 'Ecuador'}</span>
+            {selectedCanton ? (
+              <span className="font-bold text-[#0B1B3D]">{selectedCanton.name} · </span>
+            ) : (
+              <span>Nivel Nacional · </span>
+            )}
+            <span className="font-bold text-[#FF7900]">{filters.countryName || 'Ecuador'}</span>
           </p>
         </div>
 

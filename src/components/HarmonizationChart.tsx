@@ -29,13 +29,12 @@ export const HarmonizationChart: React.FC = () => {
   useEffect(() => {
     const ac = new AbortController()
     const base: Omit<BaseFilterParams, 'sensor'> = {
+      country_code: filters.country || 'ECU',
       year_from: filters.yearRange[0],
       year_to: filters.yearRange[1],
       confidence: filters.confidence,
       daynight: filters.daynight,
-      province_id: filters.provinceId,
       canton_id: filters.cantonId,
-      geojson: filters.customGeometry?.geojson,
     }
     const sensors: SensorType[] = ['harmonized', 'modis', 'viirs']
 
@@ -54,12 +53,11 @@ export const HarmonizationChart: React.FC = () => {
 
     return () => ac.abort()
   }, [
+    filters.country,
     filters.yearRange,
     filters.confidence,
     filters.daynight,
-    filters.provinceId,
     filters.cantonId,
-    filters.customGeometry?.geojson,
   ])
 
   const { years, modis, viirs, harmonized, ratio } = useMemo(() => {

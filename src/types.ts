@@ -133,7 +133,7 @@ export interface Canton {
 export interface Region {
   id: string
   name: string
-  geojson: GeoJSON.Polygon | GeoJSON.GeoJsonObject | any
+  geojson?: GeoJSON.Polygon | GeoJSON.GeoJsonObject | any
   center: [number, number] // [lat, lon]
   zoom: number
   cantons?: Canton[]

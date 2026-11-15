@@ -3,15 +3,11 @@ import {
   Filter,
   RotateCcw,
   Search,
-  Upload,
-  Circle,
-  Shapes,
   ChevronDown,
 } from 'lucide-react'
 import { useFilters } from '../hooks/useFilters'
 import type { RegionsResponse, SensorType, ConfidenceLevel, DayNight } from '../types'
-import { circleToPolygonGeoJSON } from '../utils/geoUtils'
-import { COUNTRIES, getProvincesForCountry } from '../utils/territoryData'
+import { COUNTRIES, getCitiesForCountry } from '../utils/territoryData'
 
 interface FiltersPanelProps {
   regions: RegionsResponse | null
@@ -28,67 +24,21 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
 }) => {
   const {
     filters,
-    coverageRadiusMeters,
-    setCoverageRadiusMeters,
     setCountry,
-    setProvinceId,
     setCantonId,
     setYearRange,
     setSelectedYear,
     setSensor,
     setConfidence,
     setDayNight,
-    setCustomGeometry,
     resetFilters,
     triggerAnalyze,
   } = useFilters()
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false)
-  const [geoJsonFileName, setGeoJsonFileName] = useState<string | null>(null)
-  const [coverageMode, setCoverageMode] = useState<'circle' | 'polygon'>('circle')
 
-  const availableProvinces = getProvincesForCountry(filters.country)
-  const selectedRegion =
-    availableProvinces.find((r) => r.id === filters.provinceId) ||
-    regions?.find((r) => r.id === filters.provinceId) ||
-    availableProvinces[0]
-  const cantons = selectedRegion?.cantons || []
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string
-        const parsed = JSON.parse(text)
-        setCustomGeometry({
-          type: 'polygon',
-          geojson: parsed,
-        })
-        setGeoJsonFileName(file.name)
-        setCoverageMode('polygon')
-      } catch (err) {
-        alert('El archivo no contiene un formato GeoJSON válido.')
-        console.error(err)
-      }
-    }
-    reader.readAsText(file)
-  }
-
-  const handleSliderChange = (newRadius: number) => {
-    setCoverageMode('circle')
-    setCoverageRadiusMeters(newRadius)
-  }
-
-  const handleApplyCircle = () => {
-    setCoverageMode('circle')
-    handleSliderChange(coverageRadiusMeters)
-    if (onTriggerDrawCircle) {
-      onTriggerDrawCircle(coverageRadiusMeters)
-    }
-  }
+  const availableCities = getCitiesForCountry(filters.country)
+  const selectedCity = availableCities.find((c) => c.id === filters.cantonId)
 
   const content = (
     <div className="space-y-4 text-xs font-sans">
@@ -109,14 +59,14 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
         </button>
       </div>
 
-      {/* 2. Ubicación territorial jerárquica */}
-      <div className="space-y-2">
+      {/* 2. Ubicación territorial: País y Ciudad únicamente */}
+      <div className="space-y-3">
         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
           UBICACIÓN TERRITORIAL
         </label>
         <div>
           <label htmlFor="country-select" className="text-xs text-slate-400 font-medium block mb-1">
-            País
+            País ({COUNTRIES.length} países)
           </label>
           <div className="relative">
             <select
@@ -134,7 +84,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
             >
               {COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code}>
-                  {c.name}
+                  {c.name} ({c.code})
                 </option>
               ))}
             </select>
@@ -142,134 +92,39 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label htmlFor="province-select" className="text-xs text-slate-400 font-medium block mb-1">
-              Provincia / Estado
-            </label>
-            <div className="relative">
-              <select
-                id="province-select"
-                value={filters.provinceId}
-                onChange={(e) => {
-                  const reg = availableProvinces.find((r) => r.id === e.target.value)
-                  setProvinceId(e.target.value, reg?.center)
-                }}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs cursor-pointer"
-              >
-                {availableProvinces.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="canton-select" className="text-xs text-slate-400 font-medium block mb-1">
-              Ciudad / Cantón
-            </label>
-            <div className="relative">
-              <select
-                id="canton-select"
-                value={filters.cantonId}
-                onChange={(e) => {
-                  const c = cantons.find((item) => item.id === e.target.value)
-                  setCantonId(e.target.value, c ? [c.lat, c.lon] : undefined)
-                }}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs cursor-pointer"
-              >
-                <option value="">(Toda la provincia)</option>
-                {cantons.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Área de cobertura */}
-      <div className="space-y-2 pt-1 border-t border-slate-100">
-        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-          ÁREA DE COBERTURA
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={handleApplyCircle}
-            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-              coverageMode === 'circle'
-                ? 'bg-[#FFF2E6] text-[#FF7900] border-[#FF7900] shadow-xs'
-                : 'bg-white hover:bg-[#F4F6F9] text-slate-700 border-slate-200 shadow-2xs'
-            }`}
-          >
-            <div
-              className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                coverageMode === 'circle' ? 'border-[#FF7900]' : 'border-slate-400'
-              }`}
+        <div>
+          <label htmlFor="city-select" className="text-xs text-slate-400 font-medium block mb-1">
+            Ciudad / Cantón ({availableCities.length} disponibles)
+          </label>
+          <div className="relative">
+            <select
+              id="city-select"
+              value={filters.cantonId}
+              onChange={(e) => {
+                const selectedId = e.target.value
+                if (!selectedId) {
+                  const c = COUNTRIES.find((item) => item.code === filters.country)
+                  setCantonId('', c ? [c.lat, c.lon] : undefined)
+                } else {
+                  const city = availableCities.find((item) => item.id === selectedId)
+                  setCantonId(selectedId, city ? [city.lat, city.lon] : undefined)
+                }
+              }}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-[#FF7900] focus:outline-hidden appearance-none shadow-2xs cursor-pointer"
             >
-              {coverageMode === 'circle' && <div className="w-2 h-2 rounded-full bg-[#FF7900]" />}
-            </div>
-            <span>Radio {(coverageRadiusMeters / 1000).toFixed(0)} km</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCoverageMode('polygon')
-              onTriggerDrawPolygon?.()
-            }}
-            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-              coverageMode === 'polygon'
-                ? 'bg-[#FFF2E6] text-[#FF7900] border-[#FF7900] shadow-xs'
-                : 'bg-white hover:bg-[#F4F6F9] text-slate-700 border-slate-200 shadow-2xs'
-            }`}
-          >
-            <Shapes className="w-3.5 h-3.5" />
-            <span>Dibujar polígono</span>
-          </button>
-        </div>
-
-        {/* Radio del búfer slider */}
-        <div className="pt-0.5">
-          <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-1">
-            <span>Radio del búfer</span>
-            <span className="text-[#0B2D5B] font-black">
-              {(coverageRadiusMeters / 1000).toFixed(1)} km ({coverageRadiusMeters} m)
-            </span>
+              <option value="">(Todo el país / Todas las ciudades)</option>
+              {availableCities.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <input
-            type="range"
-            min={2000}
-            max={60000}
-            step={500}
-            value={coverageRadiusMeters}
-            onChange={(e) => handleSliderChange(Number(e.target.value))}
-            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#FF7900]"
-          />
         </div>
-
-        {/* Cargar GeoJSON personalizado */}
-        <label className="flex items-center justify-center gap-2 p-2 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-[#F4F6F9] transition-colors text-xs text-slate-600 font-semibold mt-1">
-          <Upload className="w-3.5 h-3.5 text-slate-400" />
-          <span className="truncate">
-            {geoJsonFileName ? geoJsonFileName : 'Cargar GeoJSON personalizado'}
-          </span>
-          <input
-            type="file"
-            accept=".geojson,.json"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-        </label>
       </div>
 
-      {/* 4. Período histórico */}
+      {/* 3. Período histórico */}
       <div className="space-y-2 pt-1 border-t border-slate-100">
         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
           PERÍODO HISTÓRICO
@@ -438,7 +293,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
           aria-label="Abrir panel de filtros"
         >
           <Filter className="w-4 h-4" />
-          <span>Filtros ({selectedRegion?.name})</span>
+          <span>Filtros ({selectedCity ? selectedCity.name : filters.countryName || 'Territorio'})</span>
         </button>
 
         {mobileDrawerOpen && (
