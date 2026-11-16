@@ -1,0 +1,108 @@
+{
+  "proyecto": "BRASA",
+  "modelo": "XGBoost mundial MODIS, clasificacion binaria semanal",
+  "objetivo": "Probabilidad de al menos una detección térmica MODIS la semana siguiente por celda terrestre",
+  "datos": "NASA FIRMS MODIS 2019–2025, archivos previamente normalizados",
+  "meteorologia": "No se usa ERA5 en este modelo mundial",
+  "malla": {
+    "latitud_grados": 2.0,
+    "longitud_grados": 2.0,
+    "celdas_terrestres": 6568,
+    "mascara_tierra": "Natural Earth 1:110m: intersección de celda con tierra"
+  },
+  "variables": [
+    "conteo_semana",
+    "conteo_lag1",
+    "conteo_lag2",
+    "conteo_lag52",
+    "suma_ultimas4",
+    "suma_ultimas12",
+    "suma_ultimas52",
+    "semanas_activas4",
+    "semanas_activas12",
+    "latitud",
+    "longitud",
+    "sin_semana_objetivo",
+    "cos_semana_objetivo"
+  ],
+  "particiones": {
+    "entrenamiento": "2019–2023, semanas completas",
+    "calibracion": "2024-01-01 a 2024-06-30, semanas completas",
+    "seleccion_umbral": "2024-07-01 a 2024-12-29, semanas completas",
+    "prueba_retroactiva": "2025, semanas completas"
+  },
+  "muestreo_entrenamiento": {
+    "max_filas": 900000,
+    "positivos_conservados": true,
+    "semilla": 42,
+    "calibracion_sin_muestrear": true
+  },
+  "regla_umbral": "Maximizar F2 con precisión >=30% y accuracy >=70%, solo validación 2024",
+  "umbral_elegido_2024": 0.18,
+  "evaluacion_2025": [
+    {
+      "estrategia": "XGBoost calibrado mundial",
+      "umbral": 0.18,
+      "accuracy": 0.8723848248190872,
+      "precision": 0.6691432408078166,
+      "recall": 0.9346487493675885,
+      "f1": 0.7799189633069561,
+      "balanced_accuracy": 0.8935813205229854,
+      "roc_auc": 0.96338954457412,
+      "average_precision": 0.8974314718434511,
+      "brier": 0.06512432379309402,
+      "log_loss": 0.20720539817953332,
+      "TP": 75743,
+      "FP": 37451,
+      "FN": 5296,
+      "TN": 216478
+    },
+    {
+      "estrategia": "Referencia histórica por cuadrícula",
+      "umbral": 0.5,
+      "accuracy": 0.8723101908241981,
+      "precision": 0.7453673424896446,
+      "recall": 0.7172225718481225,
+      "f1": 0.7310241607868292,
+      "balanced_accuracy": 0.8195137429100692,
+      "roc_auc": 0.9367011409295664,
+      "average_precision": 0.8060762595462394,
+      "brier": 0.08733294247795044,
+      "log_loss": 0.2755416825069745,
+      "TP": 58123,
+      "FP": 19856,
+      "FN": 22916,
+      "TN": 234073
+    },
+    {
+      "estrategia": "Siempre sin detección",
+      "umbral": 0.5,
+      "accuracy": 0.7580694275274056,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "roc_auc": 0.5,
+      "average_precision": 0.2419305724725944,
+      "brier": 0.24193008861244944,
+      "log_loss": 3.342395136359275,
+      "TP": 0,
+      "FP": 0,
+      "FN": 81039,
+      "TN": 253929
+    }
+  ],
+  "semana_geojson": "2025-12-29",
+  "advertencias": [
+    "Modelo experimental: no predice incendios confirmados ni propagacion.",
+    "Una no deteccion no implica ausencia de incendio.",
+    "Malla de 2 grados: no es una prediccion localizada a escala municipal.",
+    "La máscara Natural Earth a escala 1:110m puede omitir islas pequeñas.",
+    "Se excluyen cuadriculas oceánicas; la evaluación no incluye océanos.",
+    "No confundir este modelo MODIS con un modelo entrenado para VIIRS.",
+    "No se cuenta con ERA5 mundial en este flujo; no presentarlo como meteorologico.",
+    "El GeoJSON representa la semana 2025-12-29: NO la fecha actual.",
+    "2025 se ha visto en experimentos previos regionales: evaluación retrospectiva, no operativa.",
+    "No cargar modelos joblib de fuentes que no sean de confianza."
+  ]
+}

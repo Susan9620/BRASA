@@ -474,3 +474,47 @@ def get_prediction_metadata():
     with open(meta_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
+@app.get("/api/prediction/global/geojson")
+def get_global_prediction_geojson():
+    """Retorna las 6,568 celdas terrestres mundiales con probabilidades del modelo XGBoost Global."""
+    geojson_path = MODELS_DIR / "prediccion_xgboost_modis_mundial_2grados_2019_2025.geojson"
+    if not geojson_path.exists():
+        geojson_path = Path(__file__).parent.parent / "public" / "data" / "prediccion_xgboost_modis_mundial_2grados_2019_2025.geojson"
+    if not geojson_path.exists():
+        raise HTTPException(status_code=404, detail="Archivo GeoJSON mundial no encontrado")
+    
+    import json
+    with open(geojson_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@app.get("/api/prediction/global/metadata")
+def get_global_prediction_metadata():
+    """Retorna metadatos del modelo mundial XGBoost (6,568 celdas, ROC-AUC 0.963)."""
+    meta_path = MODELS_DIR / "metadatos_xgboost_modis_mundial_2grados_2019_2025.json"
+    if not meta_path.exists():
+        meta_path = Path(__file__).parent.parent / "public" / "data" / "metadatos_xgboost_modis_mundial_2grados_2019_2025.json"
+    if not meta_path.exists():
+        raise HTTPException(status_code=404, detail="Metadatos mundiales no encontrados")
+    
+    import json
+    with open(meta_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@app.get("/api/prediction/v3/metadata")
+def get_v3_prediction_metadata():
+    """Retorna metadatos del modelo mundial V3 (0.5 grados, 91,654 celdas, ROC-AUC 0.963)."""
+    meta_path = MODELS_DIR / "metadatos_xgboost_modis_mundial_v3_05grados_2019_2025.json"
+    if not meta_path.exists():
+        meta_path = Path(__file__).parent.parent / "public" / "data" / "metadatos_xgboost_modis_mundial_v3_05grados_2019_2025.json"
+    if not meta_path.exists():
+        raise HTTPException(status_code=404, detail="Metadatos V3 no encontrados")
+    
+    import json
+    with open(meta_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+
